@@ -56,4 +56,4 @@ This project uses [PowerShell-Beautifier](https://github.com/DTW-DanWard/PowerSh
 
 ### Licensing
 
-This project is hosted with a permissive MIT license.
+This project is hosted with a permissive MIT/Expat license.

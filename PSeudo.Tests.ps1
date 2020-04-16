@@ -1,4 +1,4 @@
-# The MIT License
+# MIT License (Expat)
 #
 # Copyright (c) 2020 Josh Holbrook
 #
