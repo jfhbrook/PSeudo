@@ -22,7 +22,7 @@
 
 @{
   RootModule = 'PSeudo.psm1'
-  ModuleVersion = '1.0.1'
+  ModuleVersion = '1.0.2'
   GUID = 'd540a6db-930e-4b14-bd04-4ed21eeed8c3'
   Author = 'Josh Holbrook'
   CompanyName = 'Josh Holbrook'
@@ -36,7 +36,7 @@
 
   PrivateData = @{
     PSData = @{
-      Tags = @('Invoke-AsAdmin','Admin','Administration','Elevate','Privileges','Elevated privileges','sudo','UAC')
+      Tags = @('Invoke-AsAdmin','Admin','Administration','Elevate','Elevated','Privileges','sudo','UAC')
       LicenseUri = 'https://github.com/jfhbrook/PSeudo/blob/master/PSeudo/LICENSE'
       ProjectUri = 'https://github.com/jfhbrook/PSeudo'
     }
