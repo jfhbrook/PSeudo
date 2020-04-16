@@ -33,9 +33,11 @@ task Format {
 }
 
 task Lint {
-  Invoke-ScriptAnalyzer -Recurse `
-     -Path .\ `
-     -Settings PSGallery
+  Get-ChildItem `
+     -Path '.' `
+     -Filter '*.ps*1' `
+     -Exclude 'Secrets.ps1' `
+     -Recurse | Invoke-ScriptAnalyzer -Settings PSGallery
 }
 
 task Test {
