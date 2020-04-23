@@ -153,7 +153,7 @@ Describe '$RunnerString' {
 
     @(`
          @{ Command = 'Invoke-NothingInParticular'; ArgumentList = @(); Serializations = @('nothing important') },`
-         @{ Command = 'Write-Output'; ArgumentList = @('hello world'); Serializations = @('hello world') } `
+         @{ Command = { param($Message) Write-Output $Message }; ArgumentList = @('hello world'); Serializations = @('hello world') } `
       ) | ForEach-Object {
       $Command = $_['Command']
       $ArgumentList = $_['ArgumentList']
@@ -183,11 +183,36 @@ Describe '$RunnerString' {
 }
 
 Describe 'Invoke-AsAdmin' {
-  It 'invokes commands as admin' {
-    Mock -Module PSeudo Invoke-AdminProcess {
-      [void](Start-Process 'powershell.exe' -ArgumentList @('-EncodedCommand',(Get-Base64String $CommandString)))
-    }
 
-    Invoke-AsAdmin { Write-Output 'hello world' } | Should -Be 'hello world'
+  @(`
+       @{
+      ScriptBlock = { Write-Output 'hello world' };
+      ArgumentList = @();
+      Expected = 'hello world';
+      It = 'invokes a script block with no arguments';
+    },`
+       @{
+      ScriptBlock = { param($Message) Write-Output $Message };
+      ArgumentList = @('hello world');
+      Expected = 'hello world';
+      It = 'invokes a script block with arguments';
+    },`
+       @{
+      Command = "Write-Output 'hello world'";
+      Expected = 'hello world';
+      It = 'invokes a string command';
+    } `
+    ) | ForEach-Object {
+    It ($_.It + ' as admin') {
+      Mock -Module PSeudo Invoke-AdminProcess {
+        [void](Start-Process 'powershell.exe' -ArgumentList @('-WindowStyle','Hidden','-EncodedCommand',(Get-Base64String $CommandString)))
+      }
+
+      if ($_['ScriptBlock']) {
+        Invoke-AsAdmin $_.ScriptBlock $_.ArgumentList | Should -Be $_.Expected
+      } else {
+        Invoke-AsAdmin $_.Command | Should -Be $_.Expected
+      }
+    }
   }
 }

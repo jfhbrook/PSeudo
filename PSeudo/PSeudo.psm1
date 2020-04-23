@@ -150,6 +150,38 @@ try {
 }
 '@
 
+function Test-CommandString {
+  [CmdletBinding()]
+  param(
+    [string]$Command
+  )
+  <#
+  .DESCRIPTION
+  Test that a command string will successfully parse by PowerShell such that
+  it can be ran as the -Command for a powershell.exe child process. This is
+  important to catch ahead of time because if the parent process waits for a
+  connection that will never come it will hang indefinitely.
+
+  .PARAMETER Command
+  A string intended to be executed by PowerShell.
+  #>
+  $Tokens = $null
+  $ParseErrors = $null
+
+  [System.Management.Automation.Language.Parser]::ParseInput($Command,[ref]$Tokens,[ref]$ParseErrors) | Out-Null
+
+  if ($ParseErrors) {
+    $Exception = New-Object Exception $ParseErrors[0].Message
+    $ErrorRecord = New-Object System.Management.Automation.ErrorRecord @(`
+         $Exception,`
+         $ParseErrors[0].ErrorId,`
+         [System.Management.Automation.ErrorCategory]::'ParserError',`
+         $Command `
+      )
+    $PSCmdlet.ThrowTerminatingError($ErrorRecord)
+  }
+}
+
 function Invoke-AdminProcess {
   param(
     [string]$CommandString
@@ -269,6 +301,7 @@ function Invoke-AsAdmin {
   if ($ScriptBlock) {
     $RemoteCommand = ConvertTo-Representation $ScriptBlock
   } else {
+    Test-CommandString $Command
     $RemoteCommand = ConvertTo-Representation $Command
   }
 
@@ -284,13 +317,15 @@ function Invoke-AsAdmin {
 
   if ($ArgumentList) {
     $RemoteArgs = ConvertTo-Representation $ArgumentList
-    $CommandString += "`$ArgumentList = @(ConvertFrom-Representation `'$RemoteArgs`'`n"
+    $CommandString += "`$ArgumentList = @(ConvertFrom-Representation `'$RemoteArgs`')`n"
   } else {
     $CommandString += "`$ArgumentList = @()`n"
   }
 
   $CommandString += $RunnerString
   Write-Debug $CommandString
+
+  Test-CommandString $CommandString
 
   try {
     $InPipe = New-Object System.IO.Pipes.NamedPipeServerStream $PipeName,"In" -ErrorAction Stop
