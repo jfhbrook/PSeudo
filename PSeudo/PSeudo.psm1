@@ -158,7 +158,7 @@ function Test-CommandString {
   <#
   .DESCRIPTION
   Test that a command string will successfully parse by PowerShell such that
-  it can be ran as the -Command for a powershell.exe child process. This is
+  it can be ran as the -Command for a powershell child process. This is
   important to catch ahead of time because if the parent process waits for a
   connection that will never come it will hang indefinitely.
 
@@ -247,23 +247,33 @@ function Invoke-AsAdministrator {
 
   There are some limitations. Only objects that support .NET serialization can
   be sent in either direction, and this implementation can only handle the output
-  and error streams. Moreover, it doesn't support an -ArgumentList abstraction.
+  and error streams.
 
   Finally, the implementation can be brittle. If the command passed to the
   Administrator process is malformed and exits before the client connection
   can be established, then it will permanently lock up the parent process,
   which will be deadlocked.
 
-  .Parameter ScriptBlock
+  .PARAMETER ScriptBlock
   A script block. This gets evaluated in the Administrator process with the
   call operator (&).
 
-  .Parameter Command
+  .PARAMETER Command
   A string command. This gets evaluated in the Administrator process with
   Invoke-Expression.
 
-  .Parameter ArgumentList
+  .PARAMETER ArgumentList
   A list of arguments to be passed to the script block.
+
+  .PARAMETER FilePath
+  An optional path to a PowerShell executable. This defaults to the
+  executable being used to run the parent process; however it can be
+  overridden to run the administrator process with a different
+  executable than the one currently running.
+
+  .PARAMETER Verb
+  In addition to the RunAs verb, exes also support the RunAsUser verb. This
+  allows for using this alternate verb. The default is "RunAs".
 
   .EXAMPLE
   PS> Invoke-AsAdministrator {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}

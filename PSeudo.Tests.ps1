@@ -203,7 +203,7 @@ Describe 'Invoke-AsAdministrator' {
       It = 'invokes a string command';
     }
   ) | ForEach-Object {
-    It ($_.It + ' as administrator') {
+    It ($_.It) {
       Mock -Module PSeudo Invoke-AdminProcess {
         [void](Start-Process 'powershell.exe' -ArgumentList @('-WindowStyle','Hidden','-EncodedCommand',(Get-Base64String $CommandString)))
       }
