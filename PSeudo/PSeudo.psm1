@@ -155,14 +155,10 @@ function Invoke-AdminProcess {
     [string]$CommandString
   )
 
-  # Set up the new admin "child" process.
   $ProcStartInfo = New-Object System.Diagnostics.ProcessStartInfo
   $ProcStartInfo.FileName = "powershell.exe"
   $ProcStartInfo.Verb = "Runas"
 
-  # If the INVOKEASADMINDEBUG environment variable is set, the process will
-  # not exit, but return to an admin prompt. Otherwise, it will normally
-  # start without any window of it's own.
   if ($env:INVOKEASADMINDEBUG) {
     $ProcStartInfo.Arguments = "-NoExit","-EncodedCommand",(Get-Base64String $CommandString)
   } else {
@@ -170,10 +166,8 @@ function Invoke-AdminProcess {
     $ProcStartInfo.Arguments = "-EncodedCommand",(Get-Base64String $CommandString)
   }
 
-  # Execute the side process.
   $Process = [System.Diagnostics.Process]::Start($ProcStartInfo)
 
-  # Silence powershell process output.
   [void]$Process
 }
 
