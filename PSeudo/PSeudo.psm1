@@ -22,7 +22,7 @@
 # SOFTWARE.
 #
 
-function script:Get-Base64String {
+function Get-Base64String {
   <#
   .Description
   The Get-Base64String function converts a string into bytes and then into a
@@ -41,9 +41,9 @@ function script:Get-Base64String {
   [Convert]::ToBase64String($Bytes)
 }
 
-$script:Formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+$Formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
-function script:ConvertTo-Representation {
+function ConvertTo-Representation {
   <#
   .Description
   The ConvertTo-Representation function converts an input object into a
@@ -70,8 +70,8 @@ function script:ConvertTo-Representation {
   [Convert]::ToBase64String($Bytes)
 }
 
-$script:DeserializerString = @'
-function script:ConvertFrom-Representation {
+$DeserializerString = @'
+function ConvertFrom-Representation {
   <#
   .Description
   The ConvertFrom-Representation function converts a deserializable base64
@@ -100,7 +100,7 @@ function script:ConvertFrom-Representation {
 # arguments passed to PowerShell (, runs the command, serializes the results
 # (using .NET's serialization framework as elsewhere in this code) and sends
 # it back to the named pipe.
-$script:RunnerString = @'
+$RunnerString = @'
 $script:Serializable = $null
 $script:Output = $null
 
