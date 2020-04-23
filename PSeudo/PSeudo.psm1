@@ -172,12 +172,12 @@ function Test-CommandString {
 
   if ($ParseErrors) {
     $Exception = New-Object Exception $ParseErrors[0].Message
-    $ErrorRecord = New-Object System.Management.Automation.ErrorRecord @(`
-         $Exception,`
-         $ParseErrors[0].ErrorId,`
-         [System.Management.Automation.ErrorCategory]::'ParserError',`
-         $Command `
-      )
+    $ErrorRecord = New-Object System.Management.Automation.ErrorRecord @(
+      $Exception,
+      $ParseErrors[0].ErrorId,
+      [System.Management.Automation.ErrorCategory]::'ParserError',
+      $Command
+    )
     $PSCmdlet.ThrowTerminatingError($ErrorRecord)
   }
 }

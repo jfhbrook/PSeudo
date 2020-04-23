@@ -28,10 +28,10 @@ Import-Module .\PSeudo\PSeudo.psm1
 
 Describe 'Get-Base64String' {
   It 'encodes strings to Base64' {
-    @(`
-         @('hello world','aABlAGwAbABvACAAdwBvAHIAbABkAA=='),`
-         @("foo`r`nbar",'ZgBvAG8ADQAKAGIAYQByAA==') `
-      ) | ForEach-Object {
+    @(
+      @('hello world','aABlAGwAbABvACAAdwBvAHIAbABkAA=='),
+      @("foo`r`nbar",'ZgBvAG8ADQAKAGIAYQByAA==')
+    ) | ForEach-Object {
       $Actual = Get-Base64String $_[0]
       $Actual | Should -Be $_[1] -Because ('{0} should encode to {1}' -f $_[0],$_[1])
     }
@@ -42,12 +42,12 @@ Describe 'Get-Representation/$DeserializerString' {
   Invoke-Expression $DeserializerString
 
   It 'converts to and from value types symmetrically' {
-    @(`
-         'hello world',`
-         1,`
-         1.23,`
-         [byte]0x03 `
-      ) | ForEach-Object {
+    @(
+      'hello world',
+      1,
+      1.23,
+      [byte]0x03
+    ) | ForEach-Object {
       ConvertFrom-Representation (ConvertTo-Representation $_) | Should -Be $_ -Because "$_ should retain its value after a round trip"
     }
   }
@@ -151,10 +151,10 @@ Describe '$RunnerString' {
 
     function Invoke-NothingInParticular { 'nothing important' }
 
-    @(`
-         @{ Command = 'Invoke-NothingInParticular'; ArgumentList = @(); Serializations = @('nothing important') },`
-         @{ Command = { param($Message) Write-Output $Message }; ArgumentList = @('hello world'); Serializations = @('hello world') } `
-      ) | ForEach-Object {
+    @(
+      @{ Command = 'Invoke-NothingInParticular'; ArgumentList = @(); Serializations = @('nothing important') },
+      @{ Command = { param($Message) Write-Output $Message }; ArgumentList = @('hello world'); Serializations = @('hello world') }
+    ) | ForEach-Object {
       $Command = $_['Command']
       $ArgumentList = $_['ArgumentList']
       $TestSerializations = $_['Serializations']
@@ -184,25 +184,25 @@ Describe '$RunnerString' {
 
 Describe 'Invoke-AsAdministrator' {
 
-  @(`
-       @{
+  @(
+    @{
       ScriptBlock = { Write-Output 'hello world' };
       ArgumentList = @();
       Expected = 'hello world';
       It = 'invokes a script block with no arguments';
-    },`
-       @{
+    },
+    @{
       ScriptBlock = { param($Message) Write-Output $Message };
       ArgumentList = @('hello world');
       Expected = 'hello world';
       It = 'invokes a script block with arguments';
-    },`
-       @{
+    },
+    @{
       Command = "Write-Output 'hello world'";
       Expected = 'hello world';
       It = 'invokes a string command';
-    } `
-    ) | ForEach-Object {
+    }
+  ) | ForEach-Object {
     It ($_.It + ' as administrator') {
       Mock -Module PSeudo Invoke-AdminProcess {
         [void](Start-Process 'powershell.exe' -ArgumentList @('-WindowStyle','Hidden','-EncodedCommand',(Get-Base64String $CommandString)))
