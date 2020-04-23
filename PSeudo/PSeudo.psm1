@@ -184,12 +184,14 @@ function Test-CommandString {
 
 function Invoke-AdminProcess {
   param(
-    [string]$CommandString
+    [string]$CommandString,
+    [string]$FilePath,
+    [string]$Verb
   )
 
   $ProcStartInfo = New-Object System.Diagnostics.ProcessStartInfo
-  $ProcStartInfo.FileName = "powershell.exe"
-  $ProcStartInfo.Verb = "Runas"
+  $ProcStartInfo.FileName = $FilePath
+  $ProcStartInfo.Verb = $Verb
 
   if ($env:INVOKEASADMINDEBUG) {
     $ProcStartInfo.Arguments = "-NoExit","-EncodedCommand",(Get-Base64String $CommandString)
@@ -289,7 +291,13 @@ function Invoke-AsAdministrator {
     [string]$Command,
 
     [Parameter(Position = 1,Mandatory = $false,ParameterSetName = 'ScriptBlock')]
-    [object[]]$ArgumentList
+    [object[]]$ArgumentList,
+
+    [Parameter(Mandatory = $false)]
+    [string]$FilePath = [Diagnostics.Process]::GetCurrentProcess().Path,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Verb = 'RunAs'
   )
 
   Set-StrictMode -Version Latest
@@ -333,7 +341,7 @@ function Invoke-AsAdministrator {
     Write-Error $_.Exception.Message
   }
 
-  Invoke-AdminProcess $CommandString
+  Invoke-AdminProcess $CommandString -FilePath $FilePath -Verb $Verb
 
   $InPipe.WaitForConnection()
 
