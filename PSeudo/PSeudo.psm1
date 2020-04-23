@@ -97,7 +97,7 @@ function ConvertFrom-Representation {
 '@
 
 # The code in this string opens a client connection to a named pipe, reads in
-# arguments passed to PowerShell (, runs the command, serializes the results
+# arguments passed to PowerShell, runs the command, serializes the results
 # (using .NET's serialization framework as elsewhere in this code) and sends
 # it back to the named pipe.
 $RunnerString = @'
