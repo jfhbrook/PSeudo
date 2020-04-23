@@ -182,7 +182,7 @@ Describe '$RunnerString' {
   }
 }
 
-Describe 'Invoke-AsAdmin' {
+Describe 'Invoke-AsAdministrator' {
 
   @(`
        @{
@@ -203,15 +203,15 @@ Describe 'Invoke-AsAdmin' {
       It = 'invokes a string command';
     } `
     ) | ForEach-Object {
-    It ($_.It + ' as admin') {
+    It ($_.It + ' as administrator') {
       Mock -Module PSeudo Invoke-AdminProcess {
         [void](Start-Process 'powershell.exe' -ArgumentList @('-WindowStyle','Hidden','-EncodedCommand',(Get-Base64String $CommandString)))
       }
 
       if ($_['ScriptBlock']) {
-        Invoke-AsAdmin $_.ScriptBlock $_.ArgumentList | Should -Be $_.Expected
+        Invoke-AsAdministrator $_.ScriptBlock $_.ArgumentList | Should -Be $_.Expected
       } else {
-        Invoke-AsAdmin $_.Command | Should -Be $_.Expected
+        Invoke-AsAdministrator $_.Command | Should -Be $_.Expected
       }
     }
   }

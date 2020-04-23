@@ -203,13 +203,13 @@ function Invoke-AdminProcess {
   [void]$Process
 }
 
-function Invoke-AsAdmin {
+function Invoke-AsAdministrator {
 <#
   .SYNOPSIS
   Execute commands with elevated Administrator privileges.
 
   .DESCRIPTION
-  The Invoke-AsAdmin cmdlet executes command as an elevated user.
+  The Invoke-AsAdministrator cmdlet executes command as an elevated user.
 
   PowerShell doesn't have an analog to sudo from the *nix world. This means
   that if we want to execute commands with elevated privileges - ie, as
@@ -264,14 +264,14 @@ function Invoke-AsAdmin {
   A list of arguments to be passed to the script block.
 
   .EXAMPLE
-  PS> Invoke-AsAdmin {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}
+  PS> Invoke-AsAdministrator {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}
 
   This command creates a symbolic link to test.exe in the
   $env:USERPROFILE\bin folder. Note that $env:USERPROFILE is evaluated in
   the context of the caller process.
 
   .EXAMPLE
-  PS> Invoke-AsAdmin {Get-Process -IncludeUserName | Sort-Object UserName | Select-Object UserName, ProcessName}
+  PS> Invoke-AsAdministrator {Get-Process -IncludeUserName | Sort-Object UserName | Select-Object UserName, ProcessName}
 
   This command obtains a process list with user name information, sorted by
   UserName. Because the System.Diagnostics.Process objects are not
@@ -367,7 +367,7 @@ Export-ModuleMember `
      'Get-Base64String',`
      'ConvertTo-Representation',`
      'Invoke-AdminProcess',`
-     'Invoke-AsAdmin' `
+     'Invoke-AsAdministrator' `
   ) `
    -Variable @(`
      'DeserializerString',`
