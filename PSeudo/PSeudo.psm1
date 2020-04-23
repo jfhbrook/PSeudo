@@ -128,10 +128,10 @@ try {
 		$OutPipe = New-Object -TypeName System.IO.Pipes.NamedPipeClientStream -ArgumentList (".", $PipeName, "Out")
 		$OutPipe.Connect()
 
-		if ($ArgList.length -eq 0 -and $Command -is [string]) {
+		if ($ArgumentList.length -eq 0 -and $Command -is [string]) {
 			Invoke-Expression -Command $Command 2>&1 | Send-ToPipe
 		} else {
-			& $Command @ArgList 2>&1 | Send-ToPipe
+			& $Command @ArgumentList 2>&1 | Send-ToPipe
 		}
 		if (!$serializable) {
 			foreach ($String in $Output | Out-String -Stream) {
@@ -220,6 +220,17 @@ function Invoke-AsAdmin {
   can be established, then it will permanently lock up the parent process,
   which will be deadlocked.
 
+  .Parameter ScriptBlock
+  A script block. This gets evaluated in the Administrator process with the
+  call operator (&).
+
+  .Parameter Command
+  A string command. This gets evaluated in the Administrator process with
+  Invoke-Expression.
+
+  .Parameter ArgumentList
+  A list of arguments to be passed to the script block.
+
   .EXAMPLE
   PS> Invoke-AsAdmin {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}
 
@@ -239,25 +250,27 @@ function Invoke-AsAdmin {
 
   [CmdletBinding()]
   param(
-    [Parameter(
-      Position = 0,
-      ValueFromRemainingArguments = $true)]
-    $Expression
+    [Parameter(Position = 0,Mandatory = $true,ParameterSetName = 'ScriptBlock')]
+    [scriptblock]$ScriptBlock,
+
+    [Parameter(Position = 0,Mandatory = $true,ParameterSetName = 'StringCommand')]
+    [string]$Command,
+
+    [Parameter(Position = 1,Mandatory = $false,ParameterSetName = 'ScriptBlock')]
+    [object[]]$ArgumentList
   )
 
   Set-StrictMode -Version Latest
 
-  if ($null -eq $Expression) {
-    Write-Error "Command to execute not specified"
-    return
-  }
-
   $PipeName = "AdminPipe-" + [guid].GUID.ToString()
 
-  $Args = @($Expression)
-
   $Location = ConvertTo-Representation (Get-Location).Path
-  $RemoteCommand = ConvertTo-Representation $Args[0]
+
+  if ($ScriptBlock) {
+    $RemoteCommand = ConvertTo-Representation $ScriptBlock
+  } else {
+    $RemoteCommand = ConvertTo-Representation $Command
+  }
 
   $CommandString = "
   $DeserializerString
@@ -269,11 +282,11 @@ function Invoke-AsAdmin {
   `$Command = ConvertFrom-Representation `'$RemoteCommand`'
   "
 
-  if ($args.length -gt 1) {
-    $RemoteArgs = ConvertTo-Representation $Args[1..($Args.length - 1)]
-    $CommandString += "`$ArgList = @(ConvertFrom-Representation `'$RemoteArgs`'`n"
+  if ($ArgumentList) {
+    $RemoteArgs = ConvertTo-Representation $ArgumentList
+    $CommandString += "`$ArgumentList = @(ConvertFrom-Representation `'$RemoteArgs`'`n"
   } else {
-    $CommandString += "`$ArgList = @()`n"
+    $CommandString += "`$ArgumentList = @()`n"
   }
 
   $CommandString += $RunnerString

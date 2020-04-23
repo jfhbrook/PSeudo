@@ -152,11 +152,11 @@ Describe '$RunnerString' {
     function Invoke-NothingInParticular { 'nothing important' }
 
     @(`
-         @{ Command = 'Invoke-NothingInParticular'; ArgList = @(); Serializations = @('nothing important') },`
-         @{ Command = 'Write-Output'; ArgList = @('hello world'); Serializations = @('hello world') } `
+         @{ Command = 'Invoke-NothingInParticular'; ArgumentList = @(); Serializations = @('nothing important') },`
+         @{ Command = 'Write-Output'; ArgumentList = @('hello world'); Serializations = @('hello world') } `
       ) | ForEach-Object {
       $Command = $_['Command']
-      $arglist = $_['ArgList']
+      $ArgumentList = $_['ArgumentList']
       $TestSerializations = $_['Serializations']
 
       Invoke-Expression $RunnerString
