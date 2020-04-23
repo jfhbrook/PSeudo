@@ -128,10 +128,10 @@ try {
 		$OutPipe = New-Object -TypeName System.IO.Pipes.NamedPipeClientStream -ArgumentList (".", $PipeName, "Out")
 		$OutPipe.Connect()
 
-		if ($arglist.length -eq 0 -and $Command -is [string]) {
+		if ($ArgList.length -eq 0 -and $Command -is [string]) {
 			Invoke-Expression -Command $Command 2>&1 | Send-ToPipe
 		} else {
-			& $Command @arglist 2>&1 | Send-ToPipe
+			& $Command @ArgList 2>&1 | Send-ToPipe
 		}
 		if (!$serializable) {
 			foreach ($String in $Output | Out-String -Stream) {
@@ -254,30 +254,29 @@ function Invoke-AsAdmin {
 
   $PipeName = "AdminPipe-" + [guid].GUID.ToString()
 
-  $args = @($Expression)
+  $Args = @($Expression)
 
-  $CommandString = $DeserializerString +
-  "`n" +
-  "`$PipeName = `'" +
-  $PipeName +
-  "`'`n" +
-  "`$Location = ConvertFrom-Representation `'" +
-  (ConvertTo-Representation (Get-Location).Path) +
-  "`'`n" +
-  "`$Command = ConvertFrom-Representation `'" +
-  (ConvertTo-Representation $args[0]) +
-  "`'`n"
+  $Location = ConvertTo-Representation (Get-Location).Path
+  $RemoteCommand = ConvertTo-Representation $Args[0]
+
+  $CommandString = "
+  $DeserializerString
+
+  `$PipeName = `'$PipeName`'
+
+  `$Location = ConvertFrom-Representation `'$Location`'
+
+  `$Command = ConvertFrom-Representation `'$RemoteCommand`'
+  "
 
   if ($args.length -gt 1) {
-    $CommandString +=
-    "`$argList = @(ConvertFrom-Representation `'" +
-    (ConvertTo-Representation $args[1..($args.length - 1)]) +
-    "`')`n"
+    $RemoteArgs = ConvertTo-Representation $Args[1..($Args.length - 1)]
+    $CommandString += "`$ArgList = @(ConvertFrom-Representation `'$RemoteArgs`'`n"
   } else {
-    $CommandString += "`$argList = @()`n"
+    $CommandString += "`$ArgList = @()`n"
   }
 
-  $CommandString += $RunnerString + "`n"
+  $CommandString += $RunnerString
   Write-Debug $CommandString
 
   try {
