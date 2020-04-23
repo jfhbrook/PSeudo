@@ -205,7 +205,7 @@ Describe 'Invoke-AsAdministrator' {
   ) | ForEach-Object {
     It ($_.It) {
       Mock -Module PSeudo Invoke-AdminProcess {
-        [void](Start-Process 'powershell.exe' -ArgumentList @('-WindowStyle','Hidden','-EncodedCommand',(Get-Base64String $CommandString)))
+        [void](Start-Process $FilePath -ArgumentList @('-WindowStyle','Hidden','-EncodedCommand',(Get-Base64String $CommandString)))
       }
 
       if ($_['ScriptBlock']) {
