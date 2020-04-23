@@ -22,43 +22,46 @@
 # SOFTWARE.
 #
 
-# A function to take a supplied string argument, convert it to a byte array,
-# and convert the resulting bytes to a base64 string. Note that this encoding
-# is based on a UTF-16 LE byte encoding, rather than UTF-8.
-#
-# Check the .NET API documentation for the UnicodeEncoding.GetBytes Method
-# for more information.
-function script:Get-Base64String ([string]$String) {
+function script:Get-Base64String {
+  <#
+  .Description
+  The Get-Base64String function converts a string into bytes and then into a
+  base64 string. Note that this encoding is based on a UTF-16 LE byte
+  encoding, rather tha UTF-8.
+
+  .Parameter String
+  An unencoded string to convert to base64.
+  #>
+
+  param(
+    [string]$String
+  )
+
   $Bytes = [System.Text.Encoding]::Unicode.GetBytes($String)
   [Convert]::ToBase64String($Bytes)
 }
 
-# Formatter is a new instance of the BinaryFormatter class, which can serialize
-# and deserialize an object into or out of a binary format. The goal is
-# to generate encoded data that is guaranteed to be perfectly decodable, without
-# change. In other words, and provided we have a place to put the data, we can
-# use this to help us clone objects.
-#
-# Check the .NET API documentation for the BinaryFormatter Class for more
-# information.
 $script:Formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
-# This is how we are going to clone the object. InputObject is any .NET object
-# that will be passed to the admin process. In computer science, the standard
-# by which memory (or binary) is interpreted is called Data Representation
-# (or encoding). By taking an object and serializing it into memory, that
-# memory stream can then be copied into a new object or string. To pass an
-# object into a child process, we will want to reencode the memory
-# representation into base64 for use as a command-line encoded argument later.
-#
-# FormattedString is a new instance of the MemoryStream class. The resulting
-# object has its own real memory store. The contents of InputObject are then
-# serialized into binary using the Formatter function from above and fed into
-# the memory stream.
-#
-# Check the .NET API documentation for the MemoryStream Class for more
-# information.
-function script:ConvertTo-Representation ($InputObject) {
+function script:ConvertTo-Representation {
+  <#
+  .Description
+  The ConvertTo-Representation function converts an input object into a
+  deserializable base64 representation. This is so that we can send objects
+  over a named pipe from the host process into our administrator process.
+  Currently this only works with objects that support .NET's serialization
+  framework, but in those cases it will also serialize them in a fully
+  reversible manner - in other words, serialization and deserialization are
+  symmetric.
+
+  .Parameter InputObject
+  A serializable object.vim PS
+  #>
+
+  param(
+    $InputObject
+  )
+
   $FormattedString = New-Object -TypeName System.IO.MemoryStream
   $Formatter.Serialize($FormattedString,$InputObject)
   $Bytes = New-Object -TypeName byte[] -ArgumentList ($FormattedString.length)
@@ -67,16 +70,23 @@ function script:ConvertTo-Representation ($InputObject) {
   [Convert]::ToBase64String($Bytes)
 }
 
-# The below two variables are, in essence, storing scripts that can be encoded
-# and passed as arguments to be executed by another process. The @ symbol with
-# quotes denotes a block of string text. The variable DeserializeString then
-# stores the text of the code instead of the results.
-
-# This function acts as the opposite of the one above. Take the base64 encoded
-# data representation, and convert it into a clone of the original object. This
-# will be done from within the admin process.
 $script:DeserializerString = @'
-function script:ConvertFrom-Representation($Representation) {
+function script:ConvertFrom-Representation {
+  <#
+  .Description
+  The ConvertFrom-Representation function converts a deserializable base64
+  object representation into an object, using .NET's serialization framework.
+  This is used inside of the admin process to re-hydrate objects sent to it
+  over a named pipe from a host process.
+
+  .Parameter Representation
+  A base64 representation of an object.
+  #>
+
+  param(
+    [string]$Representation
+  )
+
 	$Formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 	$Bytes = [Convert]::FromBase64String($Representation)
 	$FormattedString = New-Object -TypeName System.IO.MemoryStream
@@ -86,15 +96,15 @@ function script:ConvertFrom-Representation($Representation) {
 }
 '@
 
-# This is the latter portion of the script to be executed in the new process.
-# 
-# RunnerString starts by setting up some variables. Filter is a special type of
-# function cast that primarily acts the same as the Process block of an
-# advanced function. 
+# The code in this string opens a client connection to a named pipe, reads in
+# arguments passed to PowerShell (, runs the command, serializes the results
+# (using .NET's serialization framework as elsewhere in this code) and sends
+# it back to the named pipe.
 $script:RunnerString = @'
 $script:Serializable = $null
 $script:Output = $null
-filter SendTo-Pipe() {
+
+filter Send-ToPipe {
 	if ($null -eq $Serializable) {
 		$script:Serializable = $_.GetType().IsSerializable
 		if (-Not $Serializable) {
@@ -108,16 +118,20 @@ filter SendTo-Pipe() {
 		[void]$script:Output.Add($_)
 	}
 }
+
 $Formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+
 Set-Location $Location
+
 try {
 	try {
 		$OutPipe = New-Object -TypeName System.IO.Pipes.NamedPipeClientStream -ArgumentList (".", $PipeName, "Out")
 		$OutPipe.Connect()
+
 		if ($arglist.length -eq 0 -and $Command -is [string]) {
-			Invoke-Expression -Command $Command 2>&1 | SendTo-Pipe
+			Invoke-Expression -Command $Command 2>&1 | Send-ToPipe
 		} else {
-			& $Command @arglist 2>&1 | SendTo-Pipe
+			& $Command @arglist 2>&1 | Send-ToPipe
 		}
 		if (!$serializable) {
 			foreach ($String in $Output | Out-String -Stream) {
@@ -163,31 +177,72 @@ function Invoke-AdminProcess {
   [void]$Process
 }
 
-# Each function block intended to be exported as a command-object should have
-# a block of synopsis information. This can then be used by `Get-Help` as the
-# short-form basis for man-like help text.
-<#
-.SYNOPSIS
-	Execute a command as an elavated user.
-
-.DESCRIPTION
-	The Invoke-AsAdmin cmdlet executes the command specified by the arguments as an elavated user.
-
-	When the command is a single string, it is executed by the Invoke-Expression cmdlet. Otherwise, the ampersand (&) shell command is used.
-
-	The command line is then executed in an elavated process that is different from the caller. The output is serialized and transfered as a pipeline stream to the caller. If the output is not serializable, it is converted to a text stream by means of the Out-String cmdlet.
-
-	The Invoke-AsAdmin cmdlet will not open a new console window. Instead, it executes the command utilizing the same console session as the caller process. All environment variables are evaluated in the context of the caller process.
-
-.EXAMPLE
-	PS> Invoke-AsAdmin {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}
-	Creates a symbolic link to test.exe in the $env:USERPROFILE\bin folder. Note that $env:USERPROFILE is evaluated in the context of the caller process.
-
-.EXAMPLE
-	PS> Invoke-AsAdmin {Get-Process -IncludeUserName | Sort-Object UserName | Select-Object UserName, ProcessName}
-	Obtains a process list with user name information, sorted by UserName. Because the System.Diagnostics.Process objects are not serializable, if you want to transform the output of Get-Process, enclose the command with curly braces to ensure that pipeline processing should be done in the called process.
-#>
 function Invoke-AsAdmin {
+<#
+  .SYNOPSIS
+  Execute commands with elevated Administrator privileges.
+
+  .DESCRIPTION
+  The Invoke-AsAdmin cmdlet executes command as an elevated user.
+
+  PowerShell doesn't have an analog to sudo from the *nix world. This means
+  that if we want to execute commands with elevated privileges - ie, as
+  Administrator - that we need to spawn a child PowerShell process with the
+  -Verb parameter set to RunAs.
+
+  Typically, when executing commands in a child PowerShell process, everything
+  works the way we would like it to - the subshell is spawned, our commands
+  (either in string or script block format) are executed in the subshell, and
+  the results are printed back in the host terminal.
+
+  However, this is not the case for Administrator processes. In these
+  situations, the child PowerShell process spawns a separate window, logs its
+  output to that window, and then typically exits when the script terminates.
+  Any IO and feedback that happens in that process, regardless of whether it's
+  the output stream, the error stream or otherwise, is lost into the aether.
+  This is further complicated by the fact that we typically don't want end
+  users to see the administrator window - it looks sloppy. This can be
+  mitigated by keeping the administrator window open after the command has
+  terminated, but this makes for a bad user experience.
+
+  This function uses a named pipe to create a connection to the child process
+  and sends data back and forth over that connection using .NET's serialization
+  framework in order to get commands we want to execute to the process and
+  output from that process back to the parent. This allows us to execute\
+  commands in an Administrator-level process and have the output print in the
+  host terminal, "just like sudo". As a matter of implementation details:
+  Invoke-Expression is used when the command is a single string, but in other
+  cases the call operator (&) is used instead.
+
+  Note that environment variables are evaluated in the context of the parent
+  process and not the child.
+
+  There are some limitations. Only objects that support .NET serialization can
+  be sent in either direction, and this implementation can only handle the output
+  and error streams. Moreover, it doesn't support an -ArgumentList abstraction.
+
+  Finally, the implementation can be brittle. If the command passed to the
+  Administrator process is malformed and exits before the client connection
+  can be established, then it will permanently lock up the parent process,
+  which will be deadlocked.
+
+  .EXAMPLE
+  PS> Invoke-AsAdmin {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}
+
+  This command creates a symbolic link to test.exe in the
+  $env:USERPROFILE\bin folder. Note that $env:USERPROFILE is evaluated in
+  the context of the caller process.
+
+  .EXAMPLE
+  PS> Invoke-AsAdmin {Get-Process -IncludeUserName | Sort-Object UserName | Select-Object UserName, ProcessName}
+
+  This command obtains a process list with user name information, sorted by
+  UserName. Because the System.Diagnostics.Process objects are not
+  serializable, if you want to transform the output of Get-Process, enclose
+  the command with curly braces to ensure that pipeline processing should be
+  done in the called process.
+  #>
+
   [CmdletBinding()]
   param(
     [Parameter(
@@ -198,22 +253,15 @@ function Invoke-AsAdmin {
 
   Set-StrictMode -Version Latest
 
-  # If no expression is given, write an error and return to the prompt.
-  # Since $null is a scalar value, always put it left of the evaluation
-  # operator.
   if ($null -eq $Expression) {
     Write-Error "Command to execute not specified"
     return
   }
 
-  # Create a unique title for the pipe.
   $PipeName = "AdminPipe-" + [guid].GUID.ToString()
 
-  # Explicitly set the argument list to be the contents of the user
-  # provided expression.
   $args = @($Expression)
 
-  # TODO: There is a lot of tom-foolery going on in here.
   $CommandString = $DeserializerString +
   "`n" +
   "`$PipeName = `'" +
@@ -226,11 +274,6 @@ function Invoke-AsAdmin {
   (ConvertTo-Representation $args[0]) +
   "`'`n"
 
-  # If there is more than one argument, serialize and convert them into a
-  # single base64 string. This is an extra argument check. In the event that
-  # the input expression is not wrapped in quotes or braces, an attempt will
-  # still be made to construct and execute the command.
-  # TODO: I'm really not sure if this is a feature or a potential flaw.
   if ($args.length -gt 1) {
     $CommandString +=
     "`$argList = @(ConvertFrom-Representation `'" +
@@ -240,12 +283,9 @@ function Invoke-AsAdmin {
     $CommandString += "`$argList = @()`n"
   }
 
-  # Join the command string with the string that contains the function to
-  # deserialize and execute all of this code..
   $CommandString += $RunnerString + "`n"
   Write-Debug $CommandString
 
-  # Open a new pipeline stream.
   try {
     $InPipe = New-Object System.IO.Pipes.NamedPipeServerStream $PipeName,"In" -ErrorAction Stop
   } catch {
@@ -254,10 +294,8 @@ function Invoke-AsAdmin {
 
   Invoke-AdminProcess $CommandString
 
-  # Now that the process is up and listening, trigger a pipe connection check.
   $InPipe.WaitForConnection()
 
-  # Read all input until the end of the input pipe. 
   try {
     for (;;) {
       $Type = $InPipe.ReadByte()
