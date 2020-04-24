@@ -153,7 +153,7 @@ function Test-CommandString {
   <#
   .DESCRIPTION
   Test that a command string will successfully parse by PowerShell such that
-  it can be ran as the -Command for a powershell child process. This is
+  it can be ran as the -Command for a PowerShell child process. This is
   important to catch ahead of time because if the parent process waits for a
   connection that will never come it will hang indefinitely.
 
