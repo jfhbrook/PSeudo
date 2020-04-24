@@ -151,10 +151,6 @@ try {
 '@
 
 function Test-CommandString {
-  [CmdletBinding()]
-  param(
-    [string]$Command
-  )
   <#
   .DESCRIPTION
   Test that a command string will successfully parse by PowerShell such that
@@ -165,6 +161,12 @@ function Test-CommandString {
   .PARAMETER Command
   A string intended to be executed by PowerShell.
   #>
+
+  [CmdletBinding()]
+  param(
+    [string]$Command
+  )
+
   $Tokens = $null
   $ParseErrors = $null
 
@@ -183,6 +185,22 @@ function Test-CommandString {
 }
 
 function Invoke-AdminProcess {
+  <#
+  .DESCRIPTION
+  Run the administrator process with the given command string, file
+  path and verb. This function is exposed internally so that it can be
+  easily mocked in tests.
+
+  .PARAMETER CommandString
+  A string intended to be executed by PowerShell.
+
+  .PARAMETER FilePath
+  The path to the PowerShell executable.
+
+  .PARAMETER Verb
+  The verb to use when starting the process. Typically "RunAs".
+  #>
+
   param(
     [string]$CommandString,
     [string]$FilePath,
