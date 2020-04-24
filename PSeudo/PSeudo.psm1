@@ -20,7 +20,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
 
 function Get-Base64String {
   <#
@@ -62,9 +61,9 @@ function ConvertTo-Representation {
     $InputObject
   )
 
-  $FormattedString = New-Object -TypeName System.IO.MemoryStream
+  $FormattedString = New-Object System.IO.MemoryStream
   $Formatter.Serialize($FormattedString,$InputObject)
-  $Bytes = New-Object -TypeName byte[] -ArgumentList ($FormattedString.length)
+  $Bytes = New-Object byte[] ($FormattedString.length)
   [void]$FormattedString.Seek(0,"Begin")
   [void]$FormattedString.Read($Bytes,0,$FormattedString.length)
   [Convert]::ToBase64String($Bytes)
@@ -87,12 +86,12 @@ function ConvertFrom-Representation {
     [string]$Representation
   )
 
-	$Formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
-	$Bytes = [Convert]::FromBase64String($Representation)
-	$FormattedString = New-Object -TypeName System.IO.MemoryStream
-	[void]$FormattedString.Write($Bytes, 0, $Bytes.length)
-	[void]$FormattedString.Seek(0, "Begin")
-	$Formatter.Deserialize($FormattedString)
+  $Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+  $Bytes = [Convert]::FromBase64String($Representation)
+  $FormattedString = New-Object System.IO.MemoryStream
+  [void]$FormattedString.Write($Bytes,0,$Bytes.length)
+  [void]$FormattedString.Seek(0,"Begin")
+  $Formatter.Deserialize($FormattedString)
 }
 '@
 
@@ -105,48 +104,48 @@ $script:Serializable = $null
 $script:Output = $null
 
 filter Send-ToPipe {
-	if ($null -eq $Serializable) {
-		$script:Serializable = $_.GetType().IsSerializable
-		if (-Not $Serializable) {
-			$script:Output = New-Object -TypeName System.Collections.ArrayList
-		}
-	}
-	if ($Serializable) {
-		$OutPipe.WriteByte(1)
-		$Formatter.Serialize($OutPipe, $_)
-	} else {
-		[void]$script:Output.Add($_)
-	}
+  if ($null -eq $Serializable) {
+    $script:Serializable = $_.GetType().IsSerializable
+    if (-not $Serializable) {
+      $script:Output = New-Object System.Collections.ArrayList
+    }
+  }
+  if ($Serializable) {
+    $OutPipe.WriteByte(1)
+    $Formatter.Serialize($OutPipe,$_)
+  } else {
+    [void]$script:Output.Add($_)
+  }
 }
 
-$Formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+$Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
 Set-Location $Location
 
 try {
-	try {
-		$OutPipe = New-Object -TypeName System.IO.Pipes.NamedPipeClientStream -ArgumentList (".", $PipeName, "Out")
-		$OutPipe.Connect()
+  try {
+    $OutPipe = New-Object System.IO.Pipes.NamedPipeClientStream ".",$PipeName,"Out"
+    $OutPipe.Connect()
 
-		if ($ArgumentList.length -eq 0 -and $Command -is [string]) {
-			Invoke-Expression -Command $Command 2>&1 | Send-ToPipe
-		} else {
-			& $Command @ArgumentList 2>&1 | Send-ToPipe
-		}
-		if (!$serializable) {
-			foreach ($String in $Output | Out-String -Stream) {
-				$OutPipe.WriteByte(1)
-				$Formatter.Serialize($OutPipe, $String)
-			}
-		}
-	} catch [Exception] {
-		$OutPipe.WriteByte(1)
-		$Formatter.Serialize($OutPipe, $_)
-	}
+    if ($ArgumentList.length -eq 0 -and $Command -is [string]) {
+      Invoke-Expression -Command $Command 2>&1 | Send-ToPipe
+    } else {
+      & $Command @ArgumentList 2>&1 | Send-ToPipe
+    }
+    if (!$Serializable) {
+      foreach ($String in $Output | Out-String -Stream) {
+        $OutPipe.WriteByte(1)
+        $Formatter.Serialize($OutPipe,$String)
+      }
+    }
+  } catch [Exception]{
+    $OutPipe.WriteByte(1)
+    $Formatter.Serialize($OutPipe,$_)
+  }
 } finally {
-	$OutPipe.WriteByte(0)
-	$OutPipe.WaitForPipeDrain()
-	$OutPipe.Close()
+  $OutPipe.WriteByte(0)
+  $OutPipe.WaitForPipeDrain()
+  $OutPipe.Close()
 }
 '@
 
