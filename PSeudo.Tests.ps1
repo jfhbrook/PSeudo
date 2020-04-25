@@ -76,21 +76,21 @@ Describe 'ConvertTo-Representation/$DeserializerString' {
   }
 
   It 'converts to and from non-serializable objects with some loss of fidelity' {
-    class NonSerializableProperty {
+    class NonSerializableProperty{
       [string]$StringProperty
     }
 
-    class TestObject {
+    class TestObject{
       [string]$StringProperty
       [hashtable]$HashProperty
-      [PSObject]$SerializableProperty
+      [psobject]$SerializableProperty
       [object]$NonSerializableProperty
     }
 
     $TestObject = New-Object TestObject
 
     $TestObject.StringProperty = 'hello world'
-    $TestObject.HashProperty = @{foo = 1; bar = 2}
+    $TestObject.HashProperty = @{ foo = 1; bar = 2 }
 
     $TestObject.SerializableProperty = New-Object PSObject
     $TestObject.SerializableProperty | Add-Member 'StringProperty' 'hello world'
@@ -113,22 +113,37 @@ Describe 'ConvertTo-Representation/$DeserializerString' {
 Describe '$RunnerString' {
   function Invoke-NothingInParticular { 'nothing important' }
 
+  class TestObject{
+    [string]$Foo
+  }
+
   @(
     @{
       It = 'invokes a simple string command and sends a string output through the pipe';
       Command = 'Invoke-NothingInParticular';
       ArgumentList = @();
-      Serializations = @('nothing important')
+      Assertions = { param($Output) $Output | Should -Be 'nothing important' }
     },
     @{
       It = 'invokes a parametrized script block and sends a string output through the pipe';
       Command = { param($Message) Write-Output $Message };
       ArgumentList = @('hello world');
-      Serializations = @('hello world')
+      Assertions = { param($Output) $Output | Should -Be 'hello world' }
+    },
+    @{
+      It = 'sends a PSObject output through the pipe';
+      Command = { $Obj = New-Object PSObject; $Obj | Add-Member 'Foo' 'bar'; return $Obj };
+      ArgumentList = @();
+      Assertions = { param($Obj) $Obj.foo | Should -Be 'bar' }
+    },
+    @{
+      It = 'sends a non-serializable output through the pipe';
+      Command = { $Obj = New-Object TestObject; $Obj.foo = 'bar'; return $Obj };
+      ArgumentList = @();
+      Assertions = { param($Obj) $Obj.foo | Should -Be 'bar' }
     }
   ) | ForEach-Object {
     It ($_.It) {
-      # A mocked output pipe
       class TestPipe{
         [hashtable[]]$Actions
         [string]$ServerName
@@ -181,8 +196,10 @@ Describe '$RunnerString' {
           $this.Actions = @()
         }
 
-        [void] Serialize ([TestPipe]$Pipe,[string]$String) {
-          $this.Actions += @{ Action = 'Serialize'; string = $String }
+        [void] Serialize ([Object]$Pipe,[object]$Object) {
+          if ($Pipe -is [TestPipe]) {
+            $this.Actions += @{ Action = 'Serialize'; Object = $Object }
+          }
         }
 
         [void] Reset () {
@@ -202,7 +219,7 @@ Describe '$RunnerString' {
 
       $Command = $_['Command']
       $ArgumentList = $_['ArgumentList']
-      $TestSerializations = $_['Serializations']
+      $Assertions = $_['Assertions']
 
       Invoke-Expression $RunnerString
 
@@ -217,9 +234,9 @@ Describe '$RunnerString' {
 
       Assert-MockCalled New-Object -Times 1 -ParameterFilter { $TypeName -eq 'System.Runtime.Serialization.Formatters.Binary.BinaryFormatter' }
 
-      foreach ($i in 0..($TestSerializations.length - 1)) {
-        $TestFormatter.Actions[$i].string | Should -Be $TestSerializations[$i] -Because "the ${i}th call to Serialize should pass the expected string"
-      }
+      $Objects = @($TestFormatter.Actions | ForEach-Object { $_.Object })
+
+      & $Assertions @Objects
 
       $TestPipe.Reset()
       $TestFormatter.Reset()
@@ -231,21 +248,32 @@ Describe 'Invoke-AsAdministrator' {
 
   @(
     @{
+      It = 'invokes a script block with no arguments';
       ScriptBlock = { Write-Output 'hello world' };
       ArgumentList = @();
-      Expected = 'hello world';
-      It = 'invokes a script block with no arguments';
+      Assertions = { param($Output) $Output | Should -Be 'hello world' };
     },
     @{
+      It = 'invokes a script block with arguments';
       ScriptBlock = { param($Message) Write-Output $Message };
       ArgumentList = @('hello world');
-      Expected = 'hello world';
-      It = 'invokes a script block with arguments';
+      Assertions = { param($Output) $Output | Should -Be 'hello world' };
     },
     @{
-      Command = "Write-Output 'hello world'";
-      Expected = 'hello world';
       It = 'invokes a string command';
+      Command = "Write-Output 'hello world'";
+      Assertions = { param($Output) $Output | Should -Be 'hello world' };
+    },
+    @{
+      It = 'handles non-serializable output';
+      ScriptBlock = {
+        class TestObject{ [string]$Foo }
+        $Obj = New-Object TestObject
+        $Obj.foo = 'foo'
+        Write-Output $Obj
+      };
+      ArgumentList = @()
+      Assertions = { param($Output) $Output.foo | Should -Be 'foo' };
     }
   ) | ForEach-Object {
     It ($_.It) {
@@ -254,9 +282,9 @@ Describe 'Invoke-AsAdministrator' {
       }
 
       if ($_['ScriptBlock']) {
-        Invoke-AsAdministrator $_.ScriptBlock $_.ArgumentList | Should -Be $_.Expected
+        & $_['Assertions'] (Invoke-AsAdministrator $_.ScriptBlock $_.ArgumentList)
       } else {
-        Invoke-AsAdministrator $_.Command | Should -Be $_.Expected
+        & $_['Assertions'] (Invoke-AsAdministrator $_.Command)
       }
     }
   }

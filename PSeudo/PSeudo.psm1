@@ -65,7 +65,7 @@ function Test-Serializable {
     try {
       $FormattedString = New-Object System.IO.MemoryStream
       $Formatter.Serialize($FormattedString,$InputObject)
-    } catch [System.Runtime.Serialization.SerializationException] {
+    } catch [System.Runtime.Serialization.SerializationException]{
       $IsSerializable = $false
     }
   }
@@ -95,10 +95,10 @@ function ConvertTo-Representation {
 
   $SerializableObject = $InputObject
 
-  if (-not (Test-Serializable $SerializableObject)) {
+  if (-not (Test-Serializable $InputObject)) {
     $SerializableObject = New-Object PSObject
 
-    @('Property', 'NoteProperty') | ForEach-Object {
+    @('Property','NoteProperty') | ForEach-Object {
       $InputObject | Get-Member -MemberType $_ | ForEach-Object {
         $Name = $_.Name
         $Value = ($InputObject | Select-Object -ExpandProperty $Name)
@@ -172,9 +172,8 @@ filter Send-ToPipe {
   $InputObject = $_
   $SerializableObject = $InputObject
 
-  if (-not (Test-Serializable $SerializableObject)) {
+  if (-not (Test-Serializable $InputObject)) {
     $SerializableObject = New-Object PSObject
-
     @('Property', 'NoteProperty') | ForEach-Object {
       $InputObject | Get-Member -MemberType $_ | ForEach-Object {
         $Name = $_.Name
