@@ -38,7 +38,7 @@ Describe 'Get-Base64String' {
   }
 }
 
-Describe 'Get-Representation/$DeserializerString' {
+Describe 'ConvertTo-Representation/$DeserializerString' {
   Invoke-Expression $DeserializerString
 
   It 'converts to and from value types symmetrically' {
@@ -66,7 +66,7 @@ Describe 'Get-Representation/$DeserializerString' {
     $RoundTrippedHashTable['int'] | Should -Be 123
   }
 
-  It 'converts to and from PSObjects' {
+  It 'converts to and from PSObjects symmetrically' {
     $TestObject = New-Object PSObject
     Add-Member -InputObject $TestObject -Name 'TestProperty' -MemberType NoteProperty -Value 'some string'
 
@@ -75,86 +75,131 @@ Describe 'Get-Representation/$DeserializerString' {
     $RoundTrippedObject | Should -BeOfType PSObject
   }
 
-  # TODO: It can't handle non-serializable objects, which makes sense - but I'd like to have a fallback.
+  It 'converts to and from non-serializable objects with some loss of fidelity' {
+    class NonSerializableProperty {
+      [string]$StringProperty
+    }
+
+    class TestObject {
+      [string]$StringProperty
+      [hashtable]$HashProperty
+      [PSObject]$SerializableProperty
+      [object]$NonSerializableProperty
+    }
+
+    $TestObject = New-Object TestObject
+
+    $TestObject.StringProperty = 'hello world'
+    $TestObject.HashProperty = @{foo = 1; bar = 2}
+
+    $TestObject.SerializableProperty = New-Object PSObject
+    $TestObject.SerializableProperty | Add-Member 'StringProperty' 'hello world'
+
+    $TestObject.NonSerializableProperty = New-Object NonSerializableProperty
+    $TestObject.NonSerializableProperty.StringProperty = 'hello world'
+
+    $RoundTrippedObject = ConvertFrom-Representation (ConvertTo-Representation $TestObject)
+
+    $RoundTrippedObject.StringProperty | Should -Be 'hello world'
+    $RoundTrippedObject.HashProperty | Should -BeOfType hashtable
+    $RoundTrippedObject.HashProperty.foo | Should -Be 1
+    $RoundTrippedObject.HashProperty.bar | Should -Be 2
+    $RoundTrippedObject.SerializableProperty | Should -BeOfType PSObject
+    $RoundTrippedObject.SerializableProperty.StringProperty | Should -Be 'hello world'
+    $RoundTrippedObject.NonSerializableProperty | Should -Match 'NonSerializableProperty$'
+  }
 }
 
 Describe '$RunnerString' {
-  It 'Can send commands through a pipe' {
-    class TestPipe{
-      [hashtable[]]$Actions
-      [string]$ServerName
-      [string]$PipeName
-      [string]$PipeDirection
+  function Invoke-NothingInParticular { 'nothing important' }
 
-      TestPipe () {
-        $this.Actions = @()
-      }
-
-      [void] Connect () {
-        $this.Actions += @{ Action = 'Connect' }
-      }
-
-      [void] Close () {
-        $this.Actions += @{ Action = 'Close' }
-      }
-
-      [void] WaitForPipeDrain () {
-        $This.Actions += @{ Action = 'WaitForPipeDrain' }
-      }
-
-      [void] WriteByte ([byte]$Byte) {
-        $this.Actions += @{ Action = 'WriteByte'; Value = $Byte }
-      }
-
-      [void] Reset () {
-        $this.Actions = @()
-        $this.ServerName = $null
-        $this.PipeName = $null
-        $this.PipeDirection = $null
-      }
+  @(
+    @{
+      It = 'invokes a simple string command and sends a string output through the pipe';
+      Command = 'Invoke-NothingInParticular';
+      ArgumentList = @();
+      Serializations = @('nothing important')
+    },
+    @{
+      It = 'invokes a parametrized script block and sends a string output through the pipe';
+      Command = { param($Message) Write-Output $Message };
+      ArgumentList = @('hello world');
+      Serializations = @('hello world')
     }
+  ) | ForEach-Object {
+    It ($_.It) {
+      # A mocked output pipe
+      class TestPipe{
+        [hashtable[]]$Actions
+        [string]$ServerName
+        [string]$PipeName
+        [string]$PipeDirection
 
-    $TestPipe = New-Object TestPipe
+        TestPipe () {
+          $this.Actions = @()
+        }
 
-    Mock New-Object {
-      $TestPipe.ServerName = $ArgumentList[0]
-      $TestPipe.PipeName = $ArgumentList[1]
-      $TestPipe.PipeDirection = $ArgumentList[2]
+        [void] Connect () {
+          $this.Actions += @{ Action = 'Connect' }
+        }
 
-      return $TestPipe
-    } -ParameterFilter { $TypeName -eq 'System.IO.Pipes.NamedPipeClientStream' }
+        [void] Close () {
+          $this.Actions += @{ Action = 'Close' }
+        }
 
-    class TestFormatter{
-      [hashtable[]]$Actions
+        [void] WaitForPipeDrain () {
+          $This.Actions += @{ Action = 'WaitForPipeDrain' }
+        }
 
-      TestFormatter () {
-        $this.Actions = @()
+        [void] WriteByte ([byte]$Byte) {
+          $this.Actions += @{ Action = 'WriteByte'; Value = $Byte }
+        }
+
+        [void] Reset () {
+          $this.Actions = @()
+          $this.ServerName = $null
+          $this.PipeName = $null
+          $this.PipeDirection = $null
+        }
       }
 
-      [void] Serialize ([TestPipe]$Pipe,[string]$String) {
-        $this.Actions += @{ Action = 'Serialize'; string = $String }
+      $TestPipe = New-Object TestPipe
+
+      Mock New-Object {
+        $TestPipe.ServerName = $ArgumentList[0]
+        $TestPipe.PipeName = $ArgumentList[1]
+        $TestPipe.PipeDirection = $ArgumentList[2]
+
+        return $TestPipe
+      } -ParameterFilter { $TypeName -eq 'System.IO.Pipes.NamedPipeClientStream' }
+
+      # A mocked BinaryFormatter
+      class TestFormatter{
+        [hashtable[]]$Actions
+
+        TestFormatter () {
+          $this.Actions = @()
+        }
+
+        [void] Serialize ([TestPipe]$Pipe,[string]$String) {
+          $this.Actions += @{ Action = 'Serialize'; string = $String }
+        }
+
+        [void] Reset () {
+          $this.Actions = @()
+        }
       }
 
-      [void] Reset () {
-        $this.Actions = @()
-      }
-    }
+      $TestFormatter = New-Object TestFormatter
 
-    $TestFormatter = New-Object TestFormatter
+      Mock New-Object {
+        $TestFormatter
+      } -ParameterFilter { $TypeName -eq 'System.Runtime.Serialization.Formatters.Binary.BinaryFormatter' }
 
-    Mock New-Object {
-      $TestFormatter
-    } -ParameterFilter { $TypeName -eq 'System.Runtime.Serialization.Formatters.Binary.BinaryFormatter' }
+      # Mocked PipeName and Location
+      $PipeName = 'TestPipeName'
+      $Location = (Get-Location).Path
 
-    $PipeName = 'TestPipeName'
-    $Location = (Get-Location).Path
-
-    function Invoke-NothingInParticular { 'nothing important' }
-
-    @(
-      @{ Command = 'Invoke-NothingInParticular'; ArgumentList = @(); Serializations = @('nothing important') },
-      @{ Command = { param($Message) Write-Output $Message }; ArgumentList = @('hello world'); Serializations = @('hello world') }
-    ) | ForEach-Object {
       $Command = $_['Command']
       $ArgumentList = $_['ArgumentList']
       $TestSerializations = $_['Serializations']

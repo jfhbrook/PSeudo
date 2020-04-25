@@ -42,27 +42,77 @@ function Get-Base64String {
 
 $Formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
+function Test-Serializable {
+  <#
+  .Description
+  The Test-Serializable function tests an object to see if it's serializable
+  with .NET's serialization framework. If the IsSerializable property is
+  true then this passes; otherwise it tests by attempting to serialize the
+  object. This means that an object may be serialized twice (once to test
+  and once to actually do it), but this seems to be the most accurate way
+  of ascertaining this property in PowerShell.
+
+  .Parameter InputObject
+  An object to test for serializability.
+  #>
+  param(
+    $InputObject
+  )
+
+  $IsSerializable = $true
+
+  if ($InputObject -and -not $InputObject.GetType().IsSerializable) {
+    try {
+      $FormattedString = New-Object System.IO.MemoryStream
+      $Formatter.Serialize($FormattedString,$InputObject)
+    } catch [System.Runtime.Serialization.SerializationException] {
+      $IsSerializable = $false
+    }
+  }
+  return $IsSerializable
+}
+
 function ConvertTo-Representation {
   <#
   .Description
   The ConvertTo-Representation function converts an input object into a
   deserializable base64 representation. This is so that we can send objects
   over a named pipe from the host process into our administrator process.
-  Currently this only works with objects that support .NET's serialization
-  framework, but in those cases it will also serialize them in a fully
-  reversible manner - in other words, serialization and deserialization are
-  symmetric.
+  When objects support .NET's serialization framework this is fully
+  reversible; in other cases, we create a new PSObject with the same top-
+  level properties (unless they're non-serializable, in which case they are
+  stubbed with a string representation). This means that an object
+  representation, though one with a significant loss of fidelity can be
+  deserialized later.
 
   .Parameter InputObject
-  A serializable object.vim PS
+  An object to convert to a base64 representation.
   #>
 
   param(
     $InputObject
   )
 
+  $SerializableObject = $InputObject
+
+  if (-not (Test-Serializable $SerializableObject)) {
+    $SerializableObject = New-Object PSObject
+
+    @('Property', 'NoteProperty') | ForEach-Object {
+      $InputObject | Get-Member -MemberType $_ | ForEach-Object {
+        $Name = $_.Name
+        $Value = ($InputObject | Select-Object -ExpandProperty $Name)
+        if (Test-Serializable $Value) {
+          $SerializableObject | Add-Member $Name $Value
+        } else {
+          $SerializableObject | Add-Member $Name ([string]$Value)
+        }
+      }
+    }
+  }
+
   $FormattedString = New-Object System.IO.MemoryStream
-  $Formatter.Serialize($FormattedString,$InputObject)
+  $Formatter.Serialize($FormattedString,$SerializableObject)
   $Bytes = New-Object byte[] ($FormattedString.length)
   [void]$FormattedString.Seek(0,"Begin")
   [void]$FormattedString.Read($Bytes,0,$FormattedString.length)
@@ -100,22 +150,46 @@ function ConvertFrom-Representation {
 # (using .NET's serialization framework as elsewhere in this code) and sends
 # it back to the named pipe.
 $RunnerString = @'
-$script:Serializable = $null
-$script:Output = $null
+function Test-Serializable {
+  param(
+    $InputObject
+  )
 
-filter Send-ToPipe {
-  if ($null -eq $Serializable) {
-    $script:Serializable = $_.GetType().IsSerializable
-    if (-not $Serializable) {
-      $script:Output = New-Object System.Collections.ArrayList
+  $IsSerializable = $true
+
+  if ($InputObject -and -not $InputObject.GetType().IsSerializable) {
+    try {
+      $FormattedString = New-Object System.IO.MemoryStream
+      $Formatter.Serialize($FormattedString,$InputObject)
+    } catch [System.Runtime.Serialization.SerializationException] {
+      $IsSerializable = $false
     }
   }
-  if ($Serializable) {
-    $OutPipe.WriteByte(1)
-    $Formatter.Serialize($OutPipe,$_)
-  } else {
-    [void]$script:Output.Add($_)
+  return $IsSerializable
+}
+
+filter Send-ToPipe {
+  $InputObject = $_
+  $SerializableObject = $InputObject
+
+  if (-not (Test-Serializable $SerializableObject)) {
+    $SerializableObject = New-Object PSObject
+
+    @('Property', 'NoteProperty') | ForEach-Object {
+      $InputObject | Get-Member -MemberType $_ | ForEach-Object {
+        $Name = $_.Name
+        $Value = ($InputObject | Select-Object -ExpandProperty $Name)
+        if (Test-Serializable $Value) {
+          $SerializableObject | Add-Member $Name $Value
+        } else {
+          $SerializableObject | Add-Member $Name ([string]$Value)
+        }
+      }
+    }
   }
+
+  $OutPipe.WriteByte(1)
+  $Formatter.Serialize($OutPipe,$SerializableObject)
 }
 
 $Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
@@ -132,12 +206,6 @@ try {
     } else {
       & $Command @ArgumentList 2>&1 | Send-ToPipe
     }
-    if (!$Serializable) {
-      foreach ($String in $Output | Out-String -Stream) {
-        $OutPipe.WriteByte(1)
-        $Formatter.Serialize($OutPipe,$String)
-      }
-    }
   } catch [Exception]{
     $OutPipe.WriteByte(1)
     $Formatter.Serialize($OutPipe,$_)
@@ -151,13 +219,13 @@ try {
 
 function Test-CommandString {
   <#
-  .DESCRIPTION
+  .Description
   Test that a command string will successfully parse by PowerShell such that
   it can be ran as the -Command for a PowerShell child process. This is
   important to catch ahead of time because if the parent process waits for a
   connection that will never come it will hang indefinitely.
 
-  .PARAMETER Command
+  .Parameter Command
   A string intended to be executed by PowerShell.
   #>
 
@@ -185,18 +253,18 @@ function Test-CommandString {
 
 function Invoke-AdminProcess {
   <#
-  .DESCRIPTION
+  .Description
   Run the administrator process with the given command string, file
   path and verb. This function is exposed internally so that it can be
   easily mocked in tests.
 
-  .PARAMETER CommandString
+  .Parameter CommandString
   A string intended to be executed by PowerShell.
 
-  .PARAMETER FilePath
+  .Parameter FilePath
   The path to the PowerShell executable.
 
-  .PARAMETER Verb
+  .Parameter Verb
   The verb to use when starting the process. Typically "RunAs".
   #>
 
@@ -224,10 +292,10 @@ function Invoke-AdminProcess {
 
 function Invoke-AsAdministrator {
 <#
-  .SYNOPSIS
+  .Synopsis
   Execute commands with elevated Administrator privileges.
 
-  .DESCRIPTION
+  .Description
   The Invoke-AsAdministrator cmdlet executes command as an elevated user.
 
   PowerShell doesn't have an analog to sudo from the *nix world. This means
@@ -271,35 +339,35 @@ function Invoke-AsAdministrator {
   can be established, then it will permanently lock up the parent process,
   which will be deadlocked.
 
-  .PARAMETER ScriptBlock
+  .Parameter ScriptBlock
   A script block. This gets evaluated in the Administrator process with the
   call operator (&).
 
-  .PARAMETER Command
+  .Parameter Command
   A string command. This gets evaluated in the Administrator process with
   Invoke-Expression.
 
-  .PARAMETER ArgumentList
+  .Parameter ArgumentList
   A list of arguments to be passed to the script block.
 
-  .PARAMETER FilePath
+  .Parameter FilePath
   An optional path to a PowerShell executable. This defaults to the
   executable being used to run the parent process; however it can be
   overridden to run the administrator process with a different
   executable than the one currently running.
 
-  .PARAMETER Verb
+  .Parameter Verb
   In addition to the RunAs verb, exes also support the RunAsUser verb. This
   allows for using this alternate verb. The default is "RunAs".
 
-  .EXAMPLE
+  .Example
   PS> Invoke-AsAdministrator {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}
 
   This command creates a symbolic link to test.exe in the
   $env:USERPROFILE\bin folder. Note that $env:USERPROFILE is evaluated in
   the context of the caller process.
 
-  .EXAMPLE
+  .Example
   PS> Invoke-AsAdministrator {Get-Process -IncludeUserName | Sort-Object UserName | Select-Object UserName, ProcessName}
 
   This command obtains a process list with user name information, sorted by
