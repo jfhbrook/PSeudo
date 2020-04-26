@@ -165,6 +165,85 @@ Describe '$RunnerString' {
         $Output.Type | Should -Be 'Output'
         $Output.Object | Should -Not -Be 'Null'
         $Output.Object.foo | Should -Be 'bar' }
+    },
+    @{
+      It = 'sends a non-terminating error with a message argument in a script block through the pipe';
+      Command = { Write-Error 'Ponyyyy' };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Error'
+        $Output.Object | Should -BeOfType [hashtable]
+        $Output.Object.ErrorRecord | Should -BeOfType [System.Management.Automation.ErrorRecord]
+      }
+    },
+    @{
+      It = 'sends a non-terminating error with a message argument in a string through the pipe';
+      Command = "Write-Error 'Ponyyyy'";
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Error'
+        $Output.Object | Should -BeOfType [hashtable]
+        $Output.Object.ErrorRecord | Should -BeOfType [System.Management.Automation.ErrorRecord]
+      }
+    },
+    @{
+      It = 'sends a non-terminating error with an Exception argument through the pipe';
+      Command = { Write-Error (New-Object Exception 'Ponyyyy') };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Error'
+        $Output.Object | Should -BeOfType [hashtable]
+        $Output.Object.ErrorRecord | Should -BeOfType [System.Management.Automation.ErrorRecord]
+      }
+    },
+    @{
+      It = 'sends a non-terminating error with an ErrorRecord argument through the pipe';
+      Command = {
+        $Exception = New-Object Exception 'Ponyyyy'
+
+        $ErrorRecord = New-Object System.Management.Automation.ErrorRecord @(
+          $Exception,
+          'errorID',
+          [System.Management.Automation.ErrorCategory]'NotSpecified',
+          $null
+        )
+
+        Write-Error $ErrorRecord
+      };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Error'
+        $Output.Object | Should -BeOfType [hashtable]
+        $Output.Object.ErrorRecord | Should -BeOfType [System.Management.Automation.ErrorRecord]
+      }
+    },
+    @{
+      It = 'sends a terminating error through the pipe';
+      Command = {
+        $Exception = New-Object Exception 'Ponyyyy'
+
+        throw $Exception
+      };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Fatal'
+        $Output.Object | Should -BeOfType [System.Management.Automation.ErrorRecord]
+      }
     }
   ) | ForEach-Object {
     It ($_.It) {
@@ -298,6 +377,26 @@ Describe 'Invoke-AsAdministrator' {
       };
       ArgumentList = @()
       Assertions = { param($Output) $Output.foo | Should -Be 'foo' };
+    },
+    @{
+      It = 'handles non-terminating error output';
+      ScriptBlock = {
+        Write-Error 'ponyyy'
+      };
+      ArgumentList = @();
+      Stream = 2;
+      Assertions = {
+        param($Output) { $Output.foo | Should -BeOfType ErrorRecord }
+      }
+    },
+    @{
+      It = 'handles terminating error output';
+      ScriptBlock = {
+        $Exception = New-Object Exception 'ponyyy'
+        throw $Exception
+      };
+      ArgumentList = @();
+      Throws = $true;
     }
   ) | ForEach-Object {
     It ($_.It) {
@@ -305,10 +404,39 @@ Describe 'Invoke-AsAdministrator' {
         [void](Start-Process $FilePath -ArgumentList @('-WindowStyle','Hidden','-EncodedCommand',(Get-Base64String $CommandString)))
       }
 
-      if ($_['ScriptBlock']) {
-        & $_['Assertions'] (Invoke-AsAdministrator $_.ScriptBlock $_.ArgumentList)
+      $ScriptBlock = $_.ScriptBlock
+      $Command = $_.Command
+      $ArgumentList = $_.ArgumentList
+      $Stream = $_.Stream
+      $Throws = $_.Throws
+      $Assertions = $_.Assertions
+
+      if ($ScriptBlock) {
+        if ($Throws) {
+          { Invoke-AsAdministrator $ScriptBlock $ArgumentList } | Should -Throw
+        } else {
+          switch ($Stream) {
+            2 {
+              & $Assertions (Invoke-AsAdministrator $ScriptBlock $ArgumentList 2>&1)
+            }
+            default {
+              & $Assertions (Invoke-AsAdministrator $ScriptBlock $ArgumentList)
+            }
+          }
+        }
       } else {
-        & $_['Assertions'] (Invoke-AsAdministrator $_.Command)
+        if ($Throws) {
+          { Invoke-AsAdministrator $Command } | Should -Throw
+        } else {
+          switch ($Stream) {
+            2 {
+              & $Assertions (Invoke-AsAdministrator $Command 2>&1)
+            }
+            default {
+              & $Assertions (Invoke-AsAdministrator $Command)
+            }
+          }
+        }
       }
     }
   }

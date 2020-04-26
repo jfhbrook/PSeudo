@@ -201,8 +201,80 @@ function Send-Message {
 }
 
 filter Send-Output {
-  Send-Message -Type 'output' -InputObject $_
+  Send-Message -Type 'Output' -InputObject $_
 }
+
+function Send-Error {
+  [CmdletBinding(PositionalBinding=$false)]
+  param(
+    [Parameter(ParameterSetName='Exception')]
+    [Exception]$Exception,
+
+    [Parameter(Mandatory=$true, ParameterSetName='ErrorRecord')]
+    [System.Management.Automation.ErrorRecord]$ErrorRecord,
+
+    [Parameter(Position=0, ParameterSetName='Exception')]
+    [string]$Message,
+
+    [Parameter(Position=1, ParameterSetName='Exception')]
+    [System.Management.Automation.ErrorCategory]$Category = [System.Management.Automation.ErrorCategory]'NotSpecified',
+
+    [Parameter(Position=2, ParameterSetName='Exception')]
+    [string]$ErrorId,
+
+    [Parameter(Position=3, ParameterSetName='Exception')]
+    [Object]$TargetObject,
+
+    [Parameter(Position=4)]
+    [string]$RecommendedAction,
+
+    [Parameter(Position=5)]
+    [string]$CategoryActivity,
+
+    [Parameter(Position=6)]
+    [string]$CategoryReason,
+
+    [Parameter(Position=7)]
+    [string]$CategoryTargetName,
+
+    [Parameter(Position=8)]
+    [string]$CategoryTargetType
+  )
+
+  if ($Message -and -not $Exception) {
+    $Exception = New-Object Exception $Message
+  }
+
+  if ($Exception) {
+    $ErrorRecord = New-Object System.Management.Automation.ErrorRecord @(
+      $Exception,
+      $ErrorId,
+      $Category,
+      $TargetObject
+    )
+  }
+
+  $Payload = @{
+    ErrorRecord = $ErrorRecord;
+    RecommendedAction = $RecommendedAction;
+    CategoryActivity = $CategoryActivity;
+    CategoryReason = $CategoryReason;
+    CategoryTargetName = $CategoryTargetName;
+    CategoryTargetType = $CategoryTargetType
+  }
+
+  Send-Message -Type Error -InputObject $Payload
+}
+
+function Send-Fatal {
+  param(
+    [System.Management.Automation.ErrorRecord]$ErrorRecord
+  )
+
+  Send-Message -Type Fatal -InputObject $ErrorRecord
+}
+
+Set-Alias -Name Write-Error -Value Send-Error
 
 $Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
@@ -214,13 +286,12 @@ try {
     $OutPipe.Connect()
 
     if ($ArgumentList.length -eq 0 -and $Command -is [string]) {
-      Invoke-Expression -Command $Command 2>&1 | Send-Output
+      Invoke-Expression -Command $Command | Send-Output
     } else {
-      & $Command @ArgumentList 2>&1 | Send-Output
+      & $Command @ArgumentList | Send-Output
     }
   } catch [Exception]{
-    $OutPipe.WriteByte(1)
-    $Formatter.Serialize($OutPipe,$_)
+    Send-Fatal $_
   }
 } finally {
   $OutPipe.WriteByte(0)
@@ -459,15 +530,28 @@ function Invoke-AsAdministrator {
         break
       }
 
-      $InputObject = $Formatter.Deserialize($InPipe).Object
-      if ($InputObject -is
-        [System.Management.Automation.ErrorRecord] -or
-        $InputObject -is
-        [Exception]
-      ) {
-        Write-Error $InputObject
-      } else {
-        $InputObject
+      $Payload = $Formatter.Deserialize($InPipe)
+      $Object = $Payload.Object
+
+      switch ($Payload.Type) {
+        'Output' {
+          Write-Output $Object
+        }
+        'Error' {
+          Write-Error `
+             -ErrorRecord $Object.ErrorRecord `
+             -RecommendedAction $Object.RecommendedAction `
+             -CategoryActivity $Object.CategoryActivity `
+             -CategoryReason $Object.CategoryReason `
+             -CategoryTargetName $Object.CategoryTargetName `
+             -CategoryTargetType $Object.CategoryTargetType
+        }
+        'Fatal' {
+          $PSCmdlet.ThrowTerminatingError($Object)
+        }
+        default {
+        }
+
       }
     }
   } catch {
