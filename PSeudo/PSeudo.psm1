@@ -168,8 +168,15 @@ function Test-Serializable {
   return $IsSerializable
 }
 
-filter Send-ToPipe {
-  $InputObject = $_
+function Send-Message {
+  [CmdletBinding()]
+  param(
+    [string]$Type,
+
+    [Parameter(ValueFromPipeline=$true)]
+    [object]$InputObject
+  )
+
   $SerializableObject = $InputObject
 
   if (-not (Test-Serializable $InputObject)) {
@@ -187,8 +194,14 @@ filter Send-ToPipe {
     }
   }
 
+  $Payload = @{Type = $Type; Object = $SerializableObject}
+
   $OutPipe.WriteByte(1)
-  $Formatter.Serialize($OutPipe,$SerializableObject)
+  $Formatter.Serialize($OutPipe,$Payload)
+}
+
+filter Send-Output {
+  Send-Message -Type 'output' -InputObject $_
 }
 
 $Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
@@ -201,9 +214,9 @@ try {
     $OutPipe.Connect()
 
     if ($ArgumentList.length -eq 0 -and $Command -is [string]) {
-      Invoke-Expression -Command $Command 2>&1 | Send-ToPipe
+      Invoke-Expression -Command $Command 2>&1 | Send-Output
     } else {
-      & $Command @ArgumentList 2>&1 | Send-ToPipe
+      & $Command @ArgumentList 2>&1 | Send-Output
     }
   } catch [Exception]{
     $OutPipe.WriteByte(1)
@@ -446,7 +459,7 @@ function Invoke-AsAdministrator {
         break
       }
 
-      $InputObject = $Formatter.Deserialize($InPipe)
+      $InputObject = $Formatter.Deserialize($InPipe).Object
       if ($InputObject -is
         [System.Management.Automation.ErrorRecord] -or
         $InputObject -is

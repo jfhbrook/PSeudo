@@ -122,25 +122,49 @@ Describe '$RunnerString' {
       It = 'invokes a simple string command and sends a string output through the pipe';
       Command = 'Invoke-NothingInParticular';
       ArgumentList = @();
-      Assertions = { param($Output) $Output | Should -Be 'nothing important' }
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Output'
+        $Output.Object | Should -Be 'nothing important' }
     },
     @{
       It = 'invokes a parametrized script block and sends a string output through the pipe';
       Command = { param($Message) Write-Output $Message };
       ArgumentList = @('hello world');
-      Assertions = { param($Output) $Output | Should -Be 'hello world' }
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Output'
+        $Output.Object | Should -Be 'hello world'
+      }
     },
     @{
       It = 'sends a PSObject output through the pipe';
       Command = { $Obj = New-Object PSObject; $Obj | Add-Member 'Foo' 'bar'; return $Obj };
       ArgumentList = @();
-      Assertions = { param($Obj) $Obj.foo | Should -Be 'bar' }
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Output'
+        $Output.Object | Should -Not -Be 'Null'
+        $Output.Object.foo | Should -Be 'bar'
+      }
     },
     @{
       It = 'sends a non-serializable output through the pipe';
       Command = { $Obj = New-Object TestObject; $Obj.foo = 'bar'; return $Obj };
       ArgumentList = @();
-      Assertions = { param($Obj) $Obj.foo | Should -Be 'bar' }
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Output'
+        $Output.Object | Should -Not -Be 'Null'
+        $Output.Object.foo | Should -Be 'bar' }
     }
   ) | ForEach-Object {
     It ($_.It) {
