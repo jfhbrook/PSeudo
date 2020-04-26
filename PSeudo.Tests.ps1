@@ -348,7 +348,6 @@ Describe '$RunnerString' {
 }
 
 Describe 'Invoke-AsAdministrator' {
-
   @(
     @{
       It = 'invokes a script block with no arguments';
@@ -386,7 +385,10 @@ Describe 'Invoke-AsAdministrator' {
       ArgumentList = @();
       Stream = 2;
       Assertions = {
-        param($Output) { $Output.foo | Should -BeOfType ErrorRecord }
+        param($Output)
+
+        $Output | Should -BeOfType [System.Management.Automation.ErrorRecord]
+        $Output.Exception.Message | Should -Match 'ponyyy'
       }
     },
     @{
@@ -397,6 +399,22 @@ Describe 'Invoke-AsAdministrator' {
       };
       ArgumentList = @();
       Throws = $true;
+    },
+    @{
+      It = 'handles records written to the error stream by imported functions';
+      ScriptBlock = {
+        Import-Module './Pseudo.Test.ModuleFixture.psm1'
+
+        Invoke-ErrorWritingFunction
+      };
+      ArgumentList = @();
+      Stream = 2;
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [System.Management.Automation.ErrorRecord]
+        $Output.Exception.Message | Should -Match 'ponyyy'
+      }
     }
   ) | ForEach-Object {
     It ($_.It) {
