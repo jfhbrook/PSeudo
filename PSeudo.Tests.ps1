@@ -244,6 +244,63 @@ Describe '$RunnerString' {
         $Output.Type | Should -Be 'Fatal'
         $Output.Object | Should -BeOfType [System.Management.Automation.ErrorRecord]
       }
+    },
+    @{
+      It = 'sends a debug message through the pipe';
+      Command = { Write-Debug 'Ponyyy' };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Debug'
+        $Output.Object | Should -Be 'Ponyyy'
+      }
+    },
+    @{
+      It = 'sends a verbose message through the pipe';
+      Command = { Write-Verbose 'Ponyyy' };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Verbose'
+        $Output.Object | Should -Be 'Ponyyy'
+      }
+    },
+    @{
+      It = 'sends a warning message through the pipe';
+      Command = { Write-Warning 'Ponyyy' };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Warning'
+        $Output.Object | Should -Be 'Ponyyy'
+      }
+    },
+    @{
+      It = 'sends information through the pipe';
+      Command = {
+        $MessageData = New-Object PSObject
+        $MessageData | Add-Member 'Foo' 'bar'
+
+        Write-Information $MessageData @('hello','world')
+      };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Information'
+        $Output.Object | Should -BeOfType [hashtable]
+        $Output.Object.MessageData | Should -BeOfType [PSObject]
+        $Output.Object.MessageData.foo | Should -Be 'bar'
+        $Output.Object.Tags[0] | Should -Be 'hello'
+        $Output.Object.Tags[1] | Should -Be 'world'
+      }
     }
   ) | ForEach-Object {
     It ($_.It) {
@@ -415,6 +472,34 @@ Describe 'Invoke-AsAdministrator' {
         $Output | Should -BeOfType [System.Management.Automation.ErrorRecord]
         $Output.Exception.Message | Should -Match 'ponyyy'
       }
+    },
+    @{
+      It = 'handles verbose output';
+      ScriptBlock = { Write-Verbose 'ponyyy' };
+      ArgumentList = @();
+      Stream = 4;
+      Assertions = { param($Output) $Output | Should -Be 'ponyyy' }
+    },
+    @{
+      It = 'handles warning output';
+      ScriptBlock = { Write-Warning 'ponyyy' };
+      ArgumentList = @();
+      Stream = 3;
+      Assertions = { param($Output) $Output | Should -Be 'ponyyy' }
+    },
+    @{
+      It = 'handles information output';
+      ScriptBlock = { Write-Information 'ponyyy' -Tags @('kate','beaton') };
+      ArgumentList = @();
+      Stream = 6;
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [System.Management.Automation.InformationRecord]
+        $Output.MessageData | Should -Be 'ponyyy'
+        $Output.Tags[0] | Should -Be 'kate'
+        $Output.Tags[1] | Should -Be 'beaton'
+      }
     }
   ) | ForEach-Object {
     It ($_.It) {
@@ -434,6 +519,15 @@ Describe 'Invoke-AsAdministrator' {
           { Invoke-AsAdministrator $ScriptBlock $ArgumentList } | Should -Throw
         } else {
           switch ($Stream) {
+            6 {
+              & $Assertions (Invoke-AsAdministrator $ScriptBlock $ArgumentList 6>&1)
+            }
+            4 {
+              & $Assertions (Invoke-AsAdministrator $ScriptBlock $ArgumentList -Verbose 4>&1)
+            }
+            3 {
+              & $Assertions (Invoke-AsAdministrator $ScriptBlock $ArgumentList 3>&1)
+            }
             2 {
               & $Assertions (Invoke-AsAdministrator $ScriptBlock $ArgumentList 2>&1)
             }
@@ -447,6 +541,15 @@ Describe 'Invoke-AsAdministrator' {
           { Invoke-AsAdministrator $Command } | Should -Throw
         } else {
           switch ($Stream) {
+            6 {
+              & $Assertions (Invoke-AsAdministrator $Command 6>&1)
+            }
+            4 {
+              & $Assertions (Invoke-AsAdministrator $Command -Verbose 4>&1)
+            }
+            3 {
+              & $Assertions (Invoke-AsAdministrator $Command 3>&1)
+            }
             2 {
               & $Assertions (Invoke-AsAdministrator $Command 2>&1)
             }

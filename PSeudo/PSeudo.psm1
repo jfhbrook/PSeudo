@@ -274,7 +274,44 @@ function Send-Fatal {
   Send-Message -Type Fatal -InputObject $ErrorRecord
 }
 
+function Send-Debug {
+  param(
+    [string]$Message
+  )
+
+  Send-Message -Type Debug -InputObject $Message
+}
+
+function Send-Verbose {
+  param(
+    [string]$Message
+  )
+
+  Send-Message -Type Verbose -InputObject $Message
+}
+
+function Send-Warning {
+  param(
+    [string]$Message
+  )
+
+  Send-Message -Type Warning -InputObject $Message
+}
+
+function Send-Information {
+  param(
+    [object]$MessageData,
+    [string[]]$Tags = @()
+  )
+
+  Send-Message -Type Information -InputObject @{MessageData = $MessageData; Tags = $Tags}
+}
+
 Set-Alias -Name Write-Error -Value Send-Error
+Set-Alias -Name Write-Debug -Value Send-Debug
+Set-Alias -Name Write-Verbose -Value Send-Verbose
+Set-Alias -Name Write-Warning -Value Send-Warning
+Set-Alias -Name Write-Information -Value Send-Information
 
 $Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
@@ -531,9 +568,10 @@ function Invoke-AsAdministrator {
       }
 
       $Payload = $Formatter.Deserialize($InPipe)
+      $PayloadType = $Payload.Type
       $Object = $Payload.Object
 
-      switch ($Payload.Type) {
+      switch ($PayloadType) {
         'Output' {
           Write-Output $Object
         }
@@ -549,7 +587,27 @@ function Invoke-AsAdministrator {
         'Fatal' {
           $PSCmdlet.ThrowTerminatingError($Object)
         }
+        'Debug' {
+          Write-Debug $Object
+        }
+        'Verbose' {
+          Write-Verbose $Object
+        }
+        'Warning' {
+          Write-Warning $Object
+        }
+        'Information' {
+          Write-Information -MessageData $Object.MessageData -Tags $Object.Tags
+        }
         default {
+          $Exception = New-Object Exception "Invalid message type $PayloadType"
+          $ErrorRecord = New-Object System.Management.Automation.ErrorRecord @(
+            $Exception,
+            'InvalidMessageTypeError',
+            [System.Management.Automation.ErrorCategory]'InvalidData',
+            $Payload
+          )
+          $PSCmdlet.WriteError($ErrorRecord)
         }
 
       }
