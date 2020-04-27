@@ -40,7 +40,7 @@ function Get-Base64String {
   [Convert]::ToBase64String($Bytes)
 }
 
-$Formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+$Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
 function Test-Serializable {
   <#
