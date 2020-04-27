@@ -343,12 +343,46 @@ function Send-Host {
   }
 }
 
+function Send-Progress {
+  [CmdletBinding(PositionalBinding=$false)]
+  param(
+    [Parameter(Position=0, Mandatory=$true)]
+    [string]$Activity,
+
+    [Parameter(Position=1)]
+    [string]$Status,
+
+    [Parameter(Position=2)]
+    [int]$Id,
+
+    [int]$PercentComplete,
+    [int]$SecondsRemaining,
+    [string]$CurrentOperation,
+    [int]$ParentId,
+    [switch]$Completed,
+    [int]$SourceId
+  )
+
+  Send-Message -Type Progress -InputObject @{
+    Activity = $Activity;
+    Status = $Status;
+    Id = $Id;
+    PercentComplete = $PercentComplete;
+    SecondsRemaining = $SecondsRemaining;
+    CurrentOperation = $CurrentOperation;
+    ParentId = $ParentId;
+    Completed = [bool]$Completed;
+    SourceId = $SourceId
+  }
+}
+
 Set-Alias -Name Write-Error -Value Send-Error
 Set-Alias -Name Write-Debug -Value Send-Debug
 Set-Alias -Name Write-Verbose -Value Send-Verbose
 Set-Alias -Name Write-Warning -Value Send-Warning
 Set-Alias -Name Write-Information -Value Send-Information
 Set-Alias -Name Write-Host -Value Send-Host
+Set-Alias -Name Write-Progress -Value Send-Progress
 
 $Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
@@ -633,33 +667,22 @@ function Invoke-AsAdministrator {
           Write-Information -MessageData $Object.MessageData -Tags $Object.Tags
         }
         'Host' {
-          if ($Object.ForegroundColor) {
-            if ($Object.BackgroundColor) {
-              Write-Host `
-                 -Object $Object.Object `
-                 -NoNewLine:$Object.NoNewLine `
-                 -Separator $Object.Separator `
-                 -ForegroundColor $Object.ForegroundColor `
-                 -BackgroundColor $Object.BackgroundColor
-            } else {
-              Write-Host `
-                 -Object $Object.Object `
-                 -NoNewLine:$Object.NoNewLine `
-                 -Separator $Object.Separator `
-                 -ForegroundColor $Object.ForegroundColor
-            }
-          } elseif ($Object.BackgroundColor) {
-            Write-Host `
-               -Object $Object.Object `
-               -NoNewLine:$Object.NoNewLine `
-               -Separator $Object.Separator `
-               -BackgroundColor $Object.BackgroundColor
-          } else {
-            Write-Host `
-               -Object $Object.Object `
-               -NoNewLine:$Object.NoNewLine `
-               -Separator $Object.Separator | Out-Null
-          }
+          $Splatted = @{}
+
+          $Object.GetEnumerator() |
+          Where-Object { $_.Value } |
+          ForEach-Object { $Splatted[$_.Name] = $_.Value } | Out-Null
+
+          Write-Host @Splatted
+        }
+        'Progress' {
+          $Splatted = @{}
+
+          $Object.GetEnumerator() |
+          Where-Object { $_.Value } |
+          ForEach-Object { $Splatted[$_.Name] = $_.Value } | Out-Null
+
+          Write-Progress @Splatted | Out-Null
         }
         default {
           $Exception = New-Object Exception "Invalid message type $PayloadType"

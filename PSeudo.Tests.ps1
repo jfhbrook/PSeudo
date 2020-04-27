@@ -22,6 +22,7 @@
 
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingInvokeExpression','',Justification = 'We are trying to test code stored in strings')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments','',Justification = 'Expressions are invoked with these variables in their scope')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPositionalParameters','',Justification = 'I want to test that positional parameters work')]
 param()
 
 Import-Module .\PSeudo\PSeudo.psm1
@@ -323,6 +324,34 @@ Describe '$RunnerString' {
         $Output.Object.ForegroundColor | Should -BeOfType [ConsoleColor]
         $Output.Object.BackgroundColor | Should -BeOfType [ConsoleColor]
       }
+    },
+    @{
+      It = 'sends progress through the pipe';
+      Command = {
+        Write-Progress `
+           -Activity 'Doing the thing' `
+           -Status 'Still doin it' `
+           -Id 2 `
+           -PercentComplete 5 `
+           -SecondsRemaining 100 `
+           -CurrentOperation 'Doing it more and more' `
+           -ParentId 1
+      };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Progress'
+        $Output.Object | Should -BeOfType [hashtable]
+        $Output.Object.Activity | Should -Be 'Doing the thing'
+        $Output.Object.Status | Should -Be 'Still doin it'
+        $Output.Object.Id | Should -Be 2
+        $Output.Object.PercentComplete | Should -Be 5
+        $Output.Object.SecondsRemaining | Should -Be 100
+        $Output.Object.CurrentOperation | Should -Be 'Doing it more and more'
+        $Output.Object.ParentId | Should -Be 1
+      }
     }
   ) | ForEach-Object {
     It ($_.It) {
@@ -522,7 +551,7 @@ Describe 'Invoke-AsAdministrator' {
         $Output.Tags[0] | Should -Be 'kate'
         $Output.Tags[1] | Should -Be 'beaton'
       }
-    }
+    },
     @{
       It = 'handles host output';
       ScriptBlock = { Write-Host 'ayy lmao' };
@@ -532,6 +561,34 @@ Describe 'Invoke-AsAdministrator' {
         param($Output)
 
         $Output | Should -Be 'ayy lmao'
+      }
+    },
+    @{
+      It = 'handles progress';
+      ScriptBlock = {
+        Write-Progress 'partying'
+        Write-Progress 'partying' 'rocking'
+        Write-Progress 'partying' 'rocking' 1
+        Write-Progress 'partying' 'rocking' 1 -PercentComplete 20
+        Write-Progress 'partying' 'still rocking' 1 -SecondsRemaining 30
+        Write-Progress 'partying' 'still rocking' 1 -PercentComplete 50 -SecondsRemaining 20
+        Write-Progress `
+           -Activity 'partying' `
+           -Status 'chillin' `
+           -PercentComplete 70 `
+           -SecondsRemaining 15 `
+           -CurrentOperation 'pouring a scotch' `
+           -Id 1 `
+           -ParentId 2
+        Write-Progress 'partying' 'chillin' 1 -Completed
+      };
+      Stream = 2;
+      Assertions = {
+        param($Output)
+
+        $Output | Write-Host
+
+        $Output | Should -Be $null
       }
     }
   ) | ForEach-Object {
