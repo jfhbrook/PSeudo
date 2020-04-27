@@ -501,6 +501,17 @@ Describe 'Invoke-AsAdministrator' {
         $Output.Tags[1] | Should -Be 'beaton'
       }
     }
+    @{
+      It = 'handles host output';
+      ScriptBlock = { Write-Host 'ayy lmao' };
+      ArgumentList = @();
+      Stream = 6;
+      Assertions = {
+        param($Output)
+
+        $Output | Should -Be 'ayy lmao'
+      }
+    }
   ) | ForEach-Object {
     It ($_.It) {
       Mock -Module PSeudo Invoke-AdminProcess {

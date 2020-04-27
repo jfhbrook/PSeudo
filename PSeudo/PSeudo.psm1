@@ -157,7 +157,7 @@ function Test-Serializable {
 
   $IsSerializable = $true
 
-  if ($InputObject -and -not $InputObject.GetType().IsSerializable) {
+  if ($InputObject) {
     try {
       $FormattedString = New-Object System.IO.MemoryStream
       $Formatter.Serialize($FormattedString,$InputObject)
@@ -165,17 +165,18 @@ function Test-Serializable {
       $IsSerializable = $false
     }
   }
+
   return $IsSerializable
 }
 
-function Send-Message {
-  [CmdletBinding()]
+function New-SerializableObject {
   param(
-    [string]$Type,
-
-    [Parameter(ValueFromPipeline=$true)]
     [object]$InputObject
   )
+
+  if ($InputObject -eq $null) {
+    return $InputObject
+  }
 
   $SerializableObject = $InputObject
 
@@ -193,6 +194,20 @@ function Send-Message {
       }
     }
   }
+
+  return $SerializableObject
+}
+
+function Send-Message {
+  [CmdletBinding()]
+  param(
+    [string]$Type,
+
+    [Parameter(ValueFromPipeline=$true)]
+    [object]$InputObject
+  )
+
+  $SerializableObject = New-SerializableObject $InputObject
 
   $Payload = @{Type = $Type; Object = $SerializableObject}
 
@@ -304,7 +319,28 @@ function Send-Information {
     [string[]]$Tags = @()
   )
 
-  Send-Message -Type Information -InputObject @{MessageData = $MessageData; Tags = $Tags}
+  Send-Message -Type Information -InputObject @{
+    MessageData = (New-SerializableObject $MessageData);
+    Tags = $Tags
+  }
+}
+
+function Send-Host {
+  param(
+    [object]$Object,
+    [switch]$NoNewLine,
+    [object]$Separator = '',
+    [ConsoleColor]$ForegroundColor,
+    [ConsoleColor]$BackgroundColor
+  )
+
+  Send-Message -Type Host -InputObject @{
+    Object = (New-SerializableObject $Object);
+    NoNewLine = [bool]$NoNewLine;
+    Separator = (New-SerializableObject $Separator);
+    ForegroundColor = $ForegroundColor;
+    BackgroundColor = $BackgroundColor
+  }
 }
 
 Set-Alias -Name Write-Error -Value Send-Error
@@ -312,6 +348,7 @@ Set-Alias -Name Write-Debug -Value Send-Debug
 Set-Alias -Name Write-Verbose -Value Send-Verbose
 Set-Alias -Name Write-Warning -Value Send-Warning
 Set-Alias -Name Write-Information -Value Send-Information
+Set-Alias -Name Write-Host -Value Send-Host
 
 $Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
@@ -550,11 +587,7 @@ function Invoke-AsAdministrator {
 
   Test-CommandString $CommandString
 
-  try {
-    $InPipe = New-Object System.IO.Pipes.NamedPipeServerStream $PipeName,"In" -ErrorAction Stop
-  } catch {
-    Write-Error $_.Exception.Message
-  }
+  $InPipe = New-Object System.IO.Pipes.NamedPipeServerStream $PipeName,"In" -ErrorAction Stop
 
   Invoke-AdminProcess $CommandString -FilePath $FilePath -Verb $Verb
 
@@ -599,6 +632,35 @@ function Invoke-AsAdministrator {
         'Information' {
           Write-Information -MessageData $Object.MessageData -Tags $Object.Tags
         }
+        'Host' {
+          if ($Object.ForegroundColor) {
+            if ($Object.BackgroundColor) {
+              Write-Host `
+                 -Object $Object.Object `
+                 -NoNewLine:$Object.NoNewLine `
+                 -Separator $Object.Separator `
+                 -ForegroundColor $Object.ForegroundColor `
+                 -BackgroundColor $Object.BackgroundColor
+            } else {
+              Write-Host `
+                 -Object $Object.Object `
+                 -NoNewLine:$Object.NoNewLine `
+                 -Separator $Object.Separator `
+                 -ForegroundColor $Object.ForegroundColor
+            }
+          } elseif ($Object.BackgroundColor) {
+            Write-Host `
+               -Object $Object.Object `
+               -NoNewLine:$Object.NoNewLine `
+               -Separator $Object.Separator `
+               -BackgroundColor $Object.BackgroundColor
+          } else {
+            Write-Host `
+               -Object $Object.Object `
+               -NoNewLine:$Object.NoNewLine `
+               -Separator $Object.Separator | Out-Null
+          }
+        }
         default {
           $Exception = New-Object Exception "Invalid message type $PayloadType"
           $ErrorRecord = New-Object System.Management.Automation.ErrorRecord @(
@@ -609,7 +671,6 @@ function Invoke-AsAdministrator {
           )
           $PSCmdlet.WriteError($ErrorRecord)
         }
-
       }
     }
   } catch {
