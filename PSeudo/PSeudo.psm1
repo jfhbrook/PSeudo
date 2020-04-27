@@ -61,7 +61,7 @@ function Test-Serializable {
 
   $IsSerializable = $true
 
-  if ($InputObject -and -not $InputObject.GetType().IsSerializable) {
+  if ($InputObject) {
     try {
       $FormattedString = New-Object System.IO.MemoryStream
       $Formatter.Serialize($FormattedString,$InputObject)
@@ -69,6 +69,7 @@ function Test-Serializable {
       $IsSerializable = $false
     }
   }
+
   return $IsSerializable
 }
 
