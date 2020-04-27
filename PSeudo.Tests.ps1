@@ -301,6 +301,28 @@ Describe '$RunnerString' {
         $Output.Object.Tags[0] | Should -Be 'hello'
         $Output.Object.Tags[1] | Should -Be 'world'
       }
+    },
+    @{
+      It = 'sends host calls through the pipe';
+      Command = {
+        Write-Host `
+           -Object (New-Object PSObject) `
+           -Separator (New-Object PSObject) `
+           -ForegroundColor 'Magenta' `
+           -BackgroundColor 'Yellow'
+      };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Host'
+        $Output.Object | Should -BeOfType [hashtable]
+        $Output.Object.Object | Should -BeOfType [PSObject]
+        $Output.Object.Separator | Should -BeOfType [PSObject]
+        $Output.Object.ForegroundColor | Should -BeOfType [ConsoleColor]
+        $Output.Object.BackgroundColor | Should -BeOfType [ConsoleColor]
+      }
     }
   ) | ForEach-Object {
     It ($_.It) {
