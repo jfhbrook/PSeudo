@@ -217,7 +217,11 @@ function Send-Message {
 }
 
 filter Send-Output {
-  Send-Message -Type 'Output' -InputObject $_
+  if ($CaptureErrorStream -and ($_ -is [System.Management.Automation.ErrorRecord])) {
+    Send-Error -ErrorRecord $_
+  } else {
+    Send-Message -Type 'Output' -InputObject $_
+  }
 }
 
 function Send-Error {
@@ -395,7 +399,13 @@ try {
     $OutPipe.Connect()
 
     if ($ArgumentList.length -eq 0 -and $Command -is [string]) {
-      Invoke-Expression -Command $Command | Send-Output
+      if ($CaptureErrorStream) {
+        Invoke-Expression -Command $Command 2>&1 | Send-Output
+      } else {
+        Invoke-Expression -Command $Command | Send-Output
+      }
+    } elseif ($CaptureErrorStream) {
+      & $Command @ArgumentList 2>&1 | Send-Output
     } else {
       & $Command @ArgumentList | Send-Output
     }
@@ -584,7 +594,10 @@ function Invoke-AsAdministrator {
     [string]$FilePath = [Diagnostics.Process]::GetCurrentProcess().Path,
 
     [Parameter(Mandatory = $false)]
-    [string]$Verb = 'RunAs'
+    [string]$Verb = 'RunAs',
+
+    [Parameter(Mandatory = $false)]
+    [switch]$CaptureErrorStream
   )
 
   Set-StrictMode -Version Latest
@@ -615,6 +628,12 @@ function Invoke-AsAdministrator {
     $CommandString += "`$ArgumentList = @(ConvertFrom-Representation `'$RemoteArgs`')`n"
   } else {
     $CommandString += "`$ArgumentList = @()`n"
+  }
+
+  if ($CaptureErrorStream) {
+    $CommandString += "`$CaptureErrorStream = `$true`n"
+  } else {
+    $CommandString += "`$CaptureErrorStream = `$false`n"
   }
 
   $CommandString += $RunnerString
