@@ -697,7 +697,7 @@ function Invoke-AsAdministrator {
       }
     }
   } catch {
-    Write-Warning $_
+    $PSCmdlet.WriteError($_)
   } finally {
     $InPipe.Close()
   }
