@@ -217,13 +217,16 @@ function Send-Message {
 }
 
 filter Send-Output {
+  param(
+    [switch]$NoEnumerate
+  )
+
   if ($CaptureErrorStream -and ($_ -is [System.Management.Automation.ErrorRecord])) {
     Send-Error -ErrorRecord $_
-
-   } else {
+  } else {
     Send-Message -Type 'Output' -InputObject $_
-   }
- }
+  }
+}
 
 function Send-Error {
   [CmdletBinding(PositionalBinding=$false)]
@@ -754,12 +757,12 @@ Export-ModuleMember `
      'Get-Base64String',`
      'ConvertTo-Representation',`
      'Invoke-AdminProcess',`
-     'Invoke-AsAdministrator', `
+     'Invoke-AsAdministrator',`
      'Test-CommandString' `
   ) `
    -Variable @(`
      'DeserializerString',`
-      'SerializerString', `
-      'SenderString', `
+     'SerializerString',`
+     'SenderString',`
      'RunnerString' `
   )

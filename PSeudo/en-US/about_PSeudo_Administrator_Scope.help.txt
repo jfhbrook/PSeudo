@@ -63,9 +63,7 @@ PUBLIC FUNCTIONS
     Specifies the object to send down the pipeline.
 
     .Parameter NoEnumerate
-    Suppresses enumeration on the Write-Output call on the host. Ignored if
-    -CaptureErrorStream is enabled when calling Invoke-AsAdministrator and the
-    object is an ErrorRecord.
+    This parameter is currently ignored.
 
     .Outputs
 
