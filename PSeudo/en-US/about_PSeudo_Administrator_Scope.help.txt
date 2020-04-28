@@ -273,13 +273,20 @@ PRIVATE FUNCTIONS
     administrator process to the host process such that it is interpreted as
     output.
 
-    However, it has special behavior when the -CaptureErrorStream switch
-    is set when calling Invoke-AsAdministrator, such that it will send instances
-    of ErrorRecord to Send-Error instead. When the switch is not enabled then
-    ErrorRecords are sent over the output stream as normal. This behavior is
-    intended for capturing errors that are written to the error stream using
-    $PSObject.WriteError, which can't be intercepted by aliasing Write-Error to
-    Send-Error.
+    It handles both the output stream and a second stream, based on the
+    -CapturedStream argument - by default this is the error stream but it
+    can also handle streams 3-6. When intercepting the other stream it checks
+    the type of the data and if it's the appropriate record type (ErrorStream,
+    VerboseStream, InformationStream, etc.) it will forward it to the
+    appropriate stream.
+
+    This behavior is intended for capturing errors (and other streams of data)
+    that are written to the error stream using $PSObject.WriteError, which
+    can't be intercepted by aliasing Write-Error to Send-Error (or
+    Write-Verbose/Send-Verbose and so on).
+
+    When this argument is set to 1, this behavior is disabled and no second
+    stream is captured.
 
 
     Send-Fatal
@@ -310,6 +317,6 @@ PRIVATE VARIABLES
     - $Location - The location used on the host
     - $Command - The command being ran by our process, either a string or a script block
     - $ArgumentList - The argument list passed to the command if it's a script block
-    - $CaptureErrorStream - A boolean used to configure how error output is captured
+    - $CapturedStream - The secondary stream being captured
     - $OutPipe - The NamedPipeClientStream used to send output objects through the named pipe
     
