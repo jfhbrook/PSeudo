@@ -8,7 +8,8 @@ LONG DESCRIPTION
     PowerShell doesn't have an analog to sudo from the *nix world. This means
     that if we want to execute commands with elevated privileges - ie, as
     Administrator - that we need to spawn a child PowerShell process with the
-    `-Verb` parameter set to `RunAs`.
+    `-Verb` parameter set to `RunAs`. This process will have elevated
+    privileges, if the user agrees to it.
 
     Typically, when executing commands in a child PowerShell process, everything
     works the way we would like it to - the subshell is spawned, our commands

@@ -520,34 +520,17 @@ function Invoke-AsAdministrator {
   Execute commands with elevated Administrator privileges.
 
   .Description
-  The Invoke-AsAdministrator cmdlet executes command as an elevated user.
+  The Invoke-AsAdministrator function executes a command as an elevated user.
 
-  PowerShell doesn't have an analog to sudo from the *nix world. This means
-  that if we want to execute commands with elevated privileges - ie, as
-  Administrator - that we need to spawn a child PowerShell process with the
-  -Verb parameter set to RunAs.
-
-  Typically, when executing commands in a child PowerShell process, everything
-  works the way we would like it to - the subshell is spawned, our commands
-  (either in string or script block format) are executed in the subshell, and
-  the results are printed back in the host terminal.
-
-  However, this is not the case for Administrator processes. In these
-  situations, the child PowerShell process spawns a separate window, logs its
-  output to that window, and then typically exits when the script terminates.
-  Any IO and feedback that happens in that process, regardless of whether it's
-  the output stream, the error stream or otherwise, is lost into the aether.
-  This is further complicated by the fact that we typically don't want end
-  users to see the administrator window - it looks sloppy. This can be
-  mitigated by keeping the administrator window open after the command has
-  terminated, but this makes for a bad user experience.
-
-  This function uses a named pipe to create a connection to the child process
-  and sends data back and forth over that connection using .NET's serialization
-  framework in order to get commands we want to execute to the process and
-  output from that process back to the parent. This allows us to execute\
-  commands in an Administrator-level process and have the output print in the
-  host terminal, "just like sudo".
+  It does this by creating a child process running with Administrator
+  privileges and passing it a special command. This command encodes the
+  arguments to the Invoke-AsAdministrator function using .NET's serialization
+  framework and a base64 encoding. It then creates a named pipe to initiate
+  a connection back to the child process, with which it sends output from
+  the commands being invoked - again using .NET's serialization framework -
+  back to the host process. This allows us to execute commands in an
+  Administrator-level process and have the output accessible in the host
+  terminal, "just like sudo".
 
   Additionally, it defines a number of functions and shadowing aliases for
   common output commands:
@@ -563,9 +546,6 @@ function Invoke-AsAdministrator {
   Naive calls to these commands will be captured and their corresponding
   parameters will be sent to the host process, where the corresponding "real"
   command will be called.
-
-  Note that environment variables inside of script blocks are evaluated in the
-  context of the host process and not the administrator process.
 
   .Parameter ScriptBlock
   A script block. This gets evaluated in the Administrator process with the
@@ -592,17 +572,10 @@ function Invoke-AsAdministrator {
   When this switch is enabled, Invoke-AsAdministrator will capture the error
   stream of the executed command and re-emit all captured ErrorRecords from
   the output stream onto the error stream. This behavior is desirable if you
-  want to capture output from  commands that are writing errors to the error
+  want to capture output from commands that are writing errors to the error
   stream using $PSObject.WriteError instead of Write-Error, but potentially
   undesirable if certain ErrorRecords are expected to be emitted on the
   Output stream.
-
-  .Example
-  PS> Invoke-AsAdministrator {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}
-
-  This command creates a symbolic link to test.exe in the
-  $env:USERPROFILE\bin folder. Note that $env:USERPROFILE is evaluated in
-  the context of the caller process.
 
   .Example
   PS> Invoke-AsAdministrator { "hello world!" }
