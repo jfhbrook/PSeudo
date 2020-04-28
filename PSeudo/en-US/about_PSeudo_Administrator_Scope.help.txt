@@ -50,14 +50,10 @@ PUBLIC FUNCTIONS
     be aliased to shadow the real Write-Output inside script blocks and commands
     executed by Invoke-AsAdministrator.
 
-    It does, however, have special behavior when the -CaptureErrorStream switch
-    is set when calling Invoke-AsAdministrator, such that it will send instances
-    of ErrorRecord to Send-Error instead of Send-Output. In these cases, the
-    -NoEnumerate flag is ignored. When the switch is not enabled then
-    ErrorRecords are sent over the output stream as normal. This behavior is
-    intended for capturing errors that are written to the error stream using
-    $PSObject.WriteError, which can't be intercepted by aliasing Write-Error to
-    Send-Error.
+    It implements NoEnumerate by calling the real Write-Output with this switch
+    before sending its output through the pipe. This means that NoEnumerate's
+    behavior depends on the version of PowerShell running in the administrator
+    process. Note that this behavior is also poorly tested.
 
     .Parameter InputObject
     Specifies the object to send down the pipeline.
@@ -271,6 +267,27 @@ PRIVATE FUNCTIONS
     .Outputs
 
     None.
+
+
+    Send-ToPipe
+    ------------
+
+    .Synopsis
+    Sends data from the output stream of the executed command to the host
+    process as output.
+
+    .Description
+    The Send-ToPipe filter sends objects through a named pipe from the
+    administrator process to the host process such that it is interpreted as
+    output.
+
+    However, it has special behavior when the -CaptureErrorStream switch
+    is set when calling Invoke-AsAdministrator, such that it will send instances
+    of ErrorRecord to Send-Error instead. When the switch is not enabled then
+    ErrorRecords are sent over the output stream as normal. This behavior is
+    intended for capturing errors that are written to the error stream using
+    $PSObject.WriteError, which can't be intercepted by aliasing Write-Error to
+    Send-Error.
 
 
     Send-Fatal

@@ -168,6 +168,18 @@ Describe '$SerializerString/$SenderString/$RunnerString' {
         $Output.Object.foo | Should -Be 'bar' }
     },
     @{
+      It = 'sends output with Write-Output';
+      Command = { Write-Output 'hello world' | Out-Null };
+      ArgumentList = @();
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [hashtable]
+        $Output.Type | Should -Be 'Output'
+        $Output.Object | Should -Be 'hello world'
+      }
+    },
+    @{
       It = 'sends a non-terminating error with a message argument in a script block through the pipe';
       Command = { Write-Error 'Ponyyyy' };
       ArgumentList = @();
@@ -489,6 +501,12 @@ Describe 'Invoke-AsAdministrator' {
       };
       ArgumentList = @()
       Assertions = { param($Output) $Output.foo | Should -Be 'foo' };
+    },
+    @{
+      It = 'sends output sent with Write-Output';
+      ScriptBlock = { Write-Output 'hello world' | Out-Null };
+      ArgumentList = @();
+      Assertions = { param($Output) $Output | Should -Be 'hello world' };
     },
     @{
       It = 'handles non-terminating error output';

@@ -216,16 +216,26 @@ function Send-Message {
   $Formatter.Serialize($OutPipe,$Payload)
 }
 
-filter Send-Output {
-  param(
-    [switch]$NoEnumerate
-  )
-
+filter Send-ToPipe {
   if ($CaptureErrorStream -and ($_ -is [System.Management.Automation.ErrorRecord])) {
     Send-Error -ErrorRecord $_
   } else {
     Send-Message -Type 'Output' -InputObject $_
   }
+}
+
+function Send-Output {
+  [CmdletBinding()]
+  param(
+    [Parameter(ValueFromPipeline=$true, Mandatory=$true)]
+    [object]$InputObject,
+
+    [switch]$NoEnumerate
+  )
+
+  $Cmd = (Get-Command 'Write-Output' -CommandType Cmdlet)
+
+  & $Cmd -InputObject $InputObject -NoEnumerate:$NoEnumerate | Send-ToPipe
 }
 
 function Send-Error {
@@ -385,6 +395,7 @@ function Send-Progress {
   }
 }
 
+Set-Alias -Name Write-Output -Value Send-Output
 Set-Alias -Name Write-Error -Value Send-Error
 Set-Alias -Name Write-Debug -Value Send-Debug
 Set-Alias -Name Write-Verbose -Value Send-Verbose
@@ -407,14 +418,14 @@ try {
 
     if ($ArgumentList.length -eq 0 -and $Command -is [string]) {
       if ($CaptureErrorStream) {
-        Invoke-Expression -Command $Command 2>&1 | Send-Output
+        Invoke-Expression -Command $Command 2>&1 | Send-ToPipe
       } else {
-        Invoke-Expression -Command $Command | Send-Output
+        Invoke-Expression -Command $Command | Send-ToPipe
       }
     } elseif ($CaptureErrorStream) {
-      & $Command @ArgumentList 2>&1 | Send-Output
+      & $Command @ArgumentList 2>&1 | Send-ToPipe
     } else {
-      & $Command @ArgumentList | Send-Output
+      & $Command @ArgumentList | Send-ToPipe
     }
   } catch [Exception]{
     Send-Fatal $_
