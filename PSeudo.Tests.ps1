@@ -509,9 +509,37 @@ Describe 'Invoke-AsAdministrator' {
       Assertions = { param($Output) $Output | Should -Be 'hello world' };
     },
     @{
-      It = 'handles non-terminating error output';
+      It = 'handles non-terminating error output from Write-Error';
       ScriptBlock = {
         Write-Error 'ponyyy'
+      };
+      ArgumentList = @();
+      Stream = 2;
+      Assertions = {
+        param($Output)
+
+        $Output | Should -BeOfType [System.Management.Automation.ErrorRecord]
+        $Output.Exception.Message | Should -Match 'ponyyy'
+      }
+    },
+    @{
+      It = 'handles non-terminating error output from $PSCmdlet.WriteError';
+      ScriptBlock = {
+        function TestFunction {
+          [CmdletBinding()]
+          param()
+
+          $Exception = New-Object Exception 'ponyyy'
+          $ErrorRecord = New-Object System.Management.Automation.ErrorRecord @(
+            $Exception,
+            'TestError',
+            [System.Management.Automation.ErrorCategory]'NotSpecified',
+            $null
+          )
+          $PSCmdlet.WriteError($ErrorRecord)
+        }
+
+        TestFunction
       };
       ArgumentList = @();
       Stream = 2;
@@ -673,33 +701,5 @@ Describe 'Invoke-AsAdministrator' {
         }
       }
     }
-  }
-
-  It 'can capture errors reported through $PSCmdlet from a script block' {
-
-    Mock -Module PSeudo Invoke-AdminProcess {
-      [void](Start-Process $FilePath -ArgumentList @('-WindowStyle','Hidden','-EncodedCommand',(Get-Base64String $CommandString)))
-    }
-
-    $ErrorRecord = (Invoke-AsAdministrator {
-        function TestFunction {
-          [CmdletBinding()]
-          param()
-
-          $Exception = New-Object Exception 'Test exception'
-          $ErrorRecord = New-Object System.Management.Automation.ErrorRecord @(
-            $Exception,
-            'TestError',
-            [System.Management.Automation.ErrorCategory]'NotSpecified',
-            $null
-          )
-          $PSCmdlet.WriteError($ErrorRecord)
-        }
-
-        TestFunction
-      } -CaptureErrorStream 2>&1)
-
-    $ErrorRecord | Should -BeOfType [System.Management.Automation.ErrorRecord]
-    $ErrorRecord.Exception.Message | Should -Be 'Test exception'
   }
 }

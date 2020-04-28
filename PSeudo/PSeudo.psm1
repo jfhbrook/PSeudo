@@ -217,8 +217,16 @@ function Send-Message {
 }
 
 filter Send-ToPipe {
-  if ($CaptureErrorStream -and ($_ -is [System.Management.Automation.ErrorRecord])) {
+  if ($CapturedStream -eq 2 -and ($_ -is [System.Management.Automation.ErrorRecord])) {
     Send-Error -ErrorRecord $_
+  } elseif ($CapturedStream -eq 3 -and ($_ -is [System.Management.Automation.WarningRecord])) {
+    Send-Warning $_.Message
+  } elseif ($CapturedStream -eq 4 -and ($_ -is [System.Management.Automation.VerboseRecord])) {
+    Send-Verbose $_.Message
+  } elseif ($CapturedStream -eq 5 -and ($_ -is [System.Management.Automation.DebugRecord])) {
+    Send-Debug $_.Message
+  } elseif ($CapturedStream -eq 6 -and ($_ -is [System.Management.Automation.InformationRecord])) {
+    Send-Information $_.MessageData $_.Tags
   } else {
     Send-Message -Type 'Output' -InputObject $_
   }
@@ -417,13 +425,29 @@ try {
     $OutPipe.Connect()
 
     if ($ArgumentList.length -eq 0 -and $Command -is [string]) {
-      if ($CaptureErrorStream) {
+      if ($CapturedStream -eq 2) {
         Invoke-Expression -Command $Command 2>&1 | Send-ToPipe
+      } elseif ($CapturedStream -eq 3) {
+        Invoke-Expression -Command $Command 3>&1 | Send-ToPipe
+      } elseif ($CapturedStream -eq 4) {
+        Invoke-Expression -Command $Command 4>&1 | Send-ToPipe
+      } elseif ($CapturedStream -eq 5) {
+        Invoke-Expression -Command $Command 5>&1 | Send-ToPipe
+      } elseif ($CapturedStream -eq 6) {
+        Invoke-Expression -Command $Command 6>&1 | Send-ToPipe
       } else {
         Invoke-Expression -Command $Command | Send-ToPipe
       }
-    } elseif ($CaptureErrorStream) {
+    } elseif ($CapturedStream -eq 2) {
       & $Command @ArgumentList 2>&1 | Send-ToPipe
+    } elseif ($CapturedStream -eq 3) {
+      & $Command @ArgumentList 3>&1 | Send-ToPipe
+    } elseif ($CapturedStream -eq 4) {
+      & $Command @ArgumentList 4>&1 | Send-ToPipe
+    } elseif ($CapturedStream -eq 5) {
+      & $Command @ArgumentList 5>&1 | Send-ToPipe
+    } elseif ($CapturedStream -eq 6) {
+      & $Command @ArgumentList 6>&1 | Send-ToPipe
     } else {
       & $Command @ArgumentList | Send-ToPipe
     }
@@ -568,14 +592,14 @@ function Invoke-AsAdministrator {
   In addition to the RunAs verb, exes also support the RunAsUser verb. This
   allows for using this alternate verb. The default is "RunAs".
 
-  .Parameter CaptureOutputStream
-  When this switch is enabled, Invoke-AsAdministrator will capture the error
-  stream of the executed command and re-emit all captured ErrorRecords from
-  the output stream onto the error stream. This behavior is desirable if you
-  want to capture output from commands that are writing errors to the error
-  stream using $PSObject.WriteError instead of Write-Error, but potentially
-  undesirable if certain ErrorRecords are expected to be emitted on the
-  Output stream.
+  .Parameter CapturedStream
+  By default, the 'error' stream (stream 2) is completely captured and all
+  ErrorRecords are re-emitted on the host Error stream. This allows for
+  capturing errors that are emitted by calling $PSCmdlet.WriteError or by
+  native cmdlets. This value can be set to capture other streams. For example,
+  setting this value to 6 would capture all data emitted over the Information
+  stream. This behavior can be completely disabled by setting this value to 1
+  (the output stream). The default is 2.
 
   .Example
   PS> Invoke-AsAdministrator { "hello world!" }
@@ -652,7 +676,8 @@ function Invoke-AsAdministrator {
     [string]$Verb = 'RunAs',
 
     [Parameter(Mandatory = $false)]
-    [switch]$CaptureErrorStream
+    [ValidateRange(1,6)]
+    [int]$CapturedStream = 2
   )
 
   Set-StrictMode -Version Latest
@@ -685,13 +710,9 @@ function Invoke-AsAdministrator {
     $CommandString += "`$ArgumentList = @()`n"
   }
 
-  if ($CaptureErrorStream) {
-    $CommandString += "`$CaptureErrorStream = `$true`n"
-  } else {
-    $CommandString += "`$CaptureErrorStream = `$false`n"
-  }
-
   $CommandString += "
+  `$CapturedStream = $CapturedStream
+
   $SerializerString
 
   $SenderString
