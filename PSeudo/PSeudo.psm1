@@ -225,8 +225,8 @@ function Send-Output {
     [switch]$NoEnumerate
   )
 
-  if ($CaptureErrorStream -and ($_ -is [System.Management.Automation.ErrorRecord])) {
-    Send-Error -ErrorRecord $_
+  if ($CaptureErrorStream -and ($InputObject -is [System.Management.Automation.ErrorRecord])) {
+    Send-Error -ErrorRecord $InputObject
   } else {
     Send-Message -Type 'Output' -InputObject $InputObject
     return $InputObject
@@ -645,8 +645,6 @@ function Invoke-AsAdministrator {
   $CommandString = "
   $DeserializerString
 
-  $SerializerString
-
   `$PipeName = `'$PipeName`'
 
   `$Location = ConvertFrom-Representation `'$Location`'
@@ -668,6 +666,8 @@ function Invoke-AsAdministrator {
   }
 
   $CommandString += "
+  $SerializerString
+
   $SenderString
 
   $RunnerString
