@@ -50,7 +50,11 @@ task Docs {
   Remove-Module PSeudo
 }
 
-task Publish {
+task Clear {
+  Get-ChildItem .\ -Include *.pspp -Recurse | Remove-Item
+}
+
+task Publish Clear, {
   . .\Secrets.ps1
 
   Publish-Module -Path .\PSeudo\ -NuGetApiKey $PowershellGalleryAPIKey
