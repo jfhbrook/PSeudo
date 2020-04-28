@@ -111,7 +111,7 @@ Describe 'ConvertTo-Representation/$DeserializerString' {
   }
 }
 
-Describe '$RunnerString' {
+Describe '$SerializerString/$SenderString/$RunnerString' {
   function Invoke-NothingInParticular { 'nothing important' }
 
   class TestObject{
@@ -424,6 +424,10 @@ Describe '$RunnerString' {
         $TestFormatter
       } -ParameterFilter { $TypeName -eq 'System.Runtime.Serialization.Formatters.Binary.BinaryFormatter' }
 
+      Invoke-Expression $SerializerString
+
+      $CaptureErrorStream = $false
+
       # Mocked PipeName and Location
       $PipeName = 'TestPipeName'
       $Location = (Get-Location).Path
@@ -432,6 +436,7 @@ Describe '$RunnerString' {
       $ArgumentList = $_['ArgumentList']
       $Assertions = $_['Assertions']
 
+      Invoke-Expression $SenderString
       Invoke-Expression $RunnerString
 
       Assert-MockCalled New-Object -Times 1 -ParameterFilter { $TypeName -eq 'System.IO.Pipes.NamedPipeClientStream' }

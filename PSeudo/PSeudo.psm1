@@ -30,6 +30,9 @@ function Get-Base64String {
 
   .Parameter String
   An unencoded string to convert to base64.
+
+  .Outputs
+  string. A base64 encoded string.
   #>
 
   param(
@@ -46,15 +49,19 @@ function Test-Serializable {
   <#
   .Description
   The Test-Serializable function tests an object to see if it's serializable
-  with .NET's serialization framework. If the IsSerializable property is
-  true then this passes; otherwise it tests by attempting to serialize the
-  object. This means that an object may be serialized twice (once to test
-  and once to actually do it), but this seems to be the most accurate way
-  of ascertaining this property in PowerShell.
+  with .NET's serialization framework. It does this by attempting to serialize
+  the object into a MemoryStream. This means that an object may be serialized
+  twice - once to test that it's serializable and then a second time to "do it
+  for real" - but it seems to be the most straightforward and accurate way of
+  ascertaining this property in PowerShell.
 
   .Parameter InputObject
   An object to test for serializability.
+
+  .Outputs
+  boolean. True if the object is serializable and false if not.
   #>
+
   param(
     $InputObject
   )
@@ -78,16 +85,20 @@ function ConvertTo-Representation {
   .Description
   The ConvertTo-Representation function converts an input object into a
   deserializable base64 representation. This is so that we can send objects
-  over a named pipe from the host process into our administrator process.
-  When objects support .NET's serialization framework this is fully
+  over command line arguments from the host process into the administrator
+  process. When objects support .NET's serialization framework this is fully
   reversible; in other cases, we create a new PSObject with the same top-
   level properties (unless they're non-serializable, in which case they are
   stubbed with a string representation). This means that an object
-  representation, though one with a significant loss of fidelity can be
+  representation, though one with a significant loss of fidelity, can still be
   deserialized later.
 
   .Parameter InputObject
   An object to convert to a base64 representation.
+
+  .Outputs
+  string. A base64 string that can be deserialized by
+  ConvertFrom-Representation inside the administrator process.
   #>
 
   param(
@@ -126,11 +137,14 @@ function ConvertFrom-Representation {
   .Description
   The ConvertFrom-Representation function converts a deserializable base64
   object representation into an object, using .NET's serialization framework.
-  This is used inside of the admin process to re-hydrate objects sent to it
-  over a named pipe from a host process.
+  This is used inside of the administrator process to re-hydrate objects sent
+  to it as command arguments from the host process.
 
   .Parameter Representation
   A base64 representation of an object.
+
+  .Outputs
+  Object. A fully function PowerShell object.
   #>
 
   param(
@@ -146,12 +160,24 @@ function ConvertFrom-Representation {
 }
 '@
 
-# The code in this string opens a client connection to a named pipe, reads in
-# arguments passed to PowerShell, runs the command, serializes the results
-# (using .NET's serialization framework as elsewhere in this code) and sends
-# it back to the named pipe.
-$RunnerString = @'
+$SerializerString = @'
 function Test-Serializable {
+  <#
+  .Description
+  The Test-Serializable function tests an object to see if it's serializable
+  with .NET's serialization framework. It does this by attempting to serialize
+  the object into a MemoryStream. This means that an object may be serialized
+  twice - once to test that it's serializable and then a second time to "do it
+  for real" - but it seems to be the most straightforward and accurate way of
+  ascertaining this property in PowerShell.
+
+  .Parameter InputObject
+  An object to test for serializability.
+
+  .Outputs
+  boolean. True if the object is serializable and false if not.
+  #>
+
   param(
     $InputObject
   )
@@ -162,7 +188,7 @@ function Test-Serializable {
     try {
       $FormattedString = New-Object System.IO.MemoryStream
       $Formatter.Serialize($FormattedString,$InputObject)
-    } catch [System.Runtime.Serialization.SerializationException] {
+    } catch [System.Runtime.Serialization.SerializationException]{
       $IsSerializable = $false
     }
   }
@@ -171,6 +197,24 @@ function Test-Serializable {
 }
 
 function New-SerializableObject {
+  <#
+  .Description
+  The New-SerializableObject function takes an arbitrary object and returns
+  one which is guaranteed to be serialiable with .NET's serialization
+  framework. When the object is already support serialization it's returned
+  as-is and serialization is fully reversible; in other cases, we create a new
+  PSObject with the same top-level properties (unless they're
+  non-serializable, in which case they are stubbed with a string
+  representation). This means that an object representation, though one with a
+  significant loss of fidelity, can still be deserialized later.
+
+  .Parameter InputObject
+  An object to convert into a serializable object.
+
+  .Outputs
+  Object. This object is guaranteed to be serializable.
+  #>
+
   param(
     [object]$InputObject
   )
@@ -199,7 +243,28 @@ function New-SerializableObject {
   return $SerializableObject
 }
 
+'@
+
+$SenderString = @'
 function Send-Message {
+  <#
+  .Description
+  The Send-Message function sends a message from the administrator process to
+  the host process over a named pipe using .NET's serialization framework. It
+  handles non-serializable objects by converting them into PSObjects with the
+  same keys and with serializable values where possible and string stubs
+  otherwise.
+
+  .Parameter Type
+  The type of message. This is used by the host to decide which output
+  function to call. Expected to be one of: Output, Error, Fatal, Debug,
+  Verbose, Warning, Information, Host, Progress.
+
+  .Outputs
+
+  None.
+
+  #>
   [CmdletBinding()]
   param(
     [string]$Type,
@@ -216,15 +281,85 @@ function Send-Message {
   $Formatter.Serialize($OutPipe,$Payload)
 }
 
-filter Send-Output {
+function Send-Output {
+  <#
+  .Synopsis
+  Sends the specified object through a named pipe from the administrator
+  process to the host process as output.
+
+  .Description
+  The Send-Output function sends the specified object through a named pipe
+  from the administrator process to the host process such that it is passed
+  down the pipeline to the next command.
+
+  It attempts to expose the same interface as Write-Output such that it can
+  be aliased to shadow the real Write-Output inside script blocks and commands
+  executed by Invoke-AsAdministrator.
+
+  It does, however, have special behavior when the -CaptureErrorStream switch
+  is set when calling Invoke-AsAdministrator, such that it will send instances
+  of ErrorRecord to Send-Error instead of Send-Output. In these cases, the
+  -NoEnumerate flag is ignored. When the switch is not enabled then
+  ErrorRecords are sent over the output stream as normal. This behavior is
+  intended for capturing errors that are written to the error stream using
+  $PSObject.WriteError, which can't be intercepted by aliasing Write-Error to
+  Send-Error.
+
+  .Parameter InputObject
+  Specifies the object to send down the pipeline.
+
+  .Parameter NoEnumerate
+  Suppresses enumeration on the Write-Output call on the host. Ignored if
+  -CaptureErrorStream is enabled when calling Invoke-AsAdministrator and the
+  object is an ErrorRecord.
+
+  .Outputs
+
+  Object. Send-Output returns the same object that's submitted as input,
+  excepting for when -CaptureErrorStream is enabled and the input object is
+  an ErrorRecord.
+  #>
+
+  [CmdletBinding()]
+  param(
+    [Parameter(ValueFromPipeline=$true)]
+    [object]$InputObject,
+
+    [switch]$NoEnumerate
+  )
+
   if ($CaptureErrorStream -and ($_ -is [System.Management.Automation.ErrorRecord])) {
     Send-Error -ErrorRecord $_
   } else {
-    Send-Message -Type 'Output' -InputObject $_
+    Send-Message -Type 'Output' -InputObject $InputObject
+    return $InputObject
   }
 }
 
 function Send-Error {
+  <#
+  .Synopsis
+  Sends the specified object through a named pipe from the administrator
+  process to the host process as an error.
+
+  .Description
+  The Send-Error function declares a non-terminating error and then sends it
+  through a named pipe from the administrator process to the host process
+  such that it is emitted on the error stream.
+
+  It attempts to expose the same interface as Write-Error such that it can
+  be aliased to shadow the real Write-Error inside script blocks and commands
+  executed by Invoke-AsAdministrator. It should be noted, however, that the
+  actual interface to Write-Error is complicated and that there might be bugs.
+
+  Internally, it constructs an ErrorRecord before sending it to the pipe. This
+  simplifies the payload structure but may cause slightly different behavior
+  than the real Write-Error depending on how it is called.
+
+  .Outputs
+  None.
+  #>
+
   [CmdletBinding(PositionalBinding=$false)]
   param(
     [Parameter(ParameterSetName='Exception')]
@@ -287,6 +422,23 @@ function Send-Error {
 }
 
 function Send-Fatal {
+  <#
+  .Synopsis
+  Sends the specified ErrorRecord through a named pipe from the administrator
+  process to the host process such that it is thrown as a terminating error.
+
+  .Description
+  The Send-Fatal function declares an error and then sends it through a named
+  pipe from the administrator process to the host process such that it can be
+  thrown as a terminating error.
+
+  .Parameter ErrorRecord
+  An ErrorRecord such as the value of $_ inside of a catch block.
+
+  .Outputs
+  None.
+  #>
+
   param(
     [System.Management.Automation.ErrorRecord]$ErrorRecord
   )
@@ -295,6 +447,21 @@ function Send-Fatal {
 }
 
 function Send-Debug {
+  <#
+  .Synopsis
+  Sends a debug message through a named pipe from the administrator
+  process to the host process.
+
+  .Description
+  The Send-Debug function sends a message through a named pipe from the
+  administrator process to the host process such that it can be emitted
+  as a debug message on the host.
+
+  It attempts to expose the same interface as Write-Debug such that it can
+  be aliased to shadow the real Write-Debug inside script blocks and commands
+  executed by Invoke-AsAdministrator.
+  #>
+
   param(
     [string]$Message
   )
@@ -303,6 +470,21 @@ function Send-Debug {
 }
 
 function Send-Verbose {
+  <#
+  .Synopsis
+  Sends text through a named pipe from the administrator process to the host
+  process such that it can be written to the verbose message stream.
+
+  .Description
+  The Send-Verbose function sends text through a named pipe from the
+  administrator process to the host process such that it can be emitted
+  on the verbose message stream on the host.
+
+  It attempts to expose the same interface as Write-Verbose such that it can
+  be aliased to shadow the real Write-Verbose inside script blocks and commands
+  executed by Invoke-AsAdministrator.
+  #>
+
   param(
     [string]$Message
   )
@@ -311,6 +493,21 @@ function Send-Verbose {
 }
 
 function Send-Warning {
+  <#
+  .Synopsis
+  Sends a warning through a named pipe from the administrator process to the
+  host process.
+
+  .Description
+  The Send-Warning function sends warning messages through a named pipe from
+  the administrator process to the host process such that they can be emitted
+  as warnings on the host.
+
+  It attempts to expose the same interface as Write-Warning such that it can
+  be aliased to shadow the real Write-Warning inside script blocks and commands
+  executed by Invoke-AsAdministrator.
+  #>
+
   param(
     [string]$Message
   )
@@ -319,6 +516,21 @@ function Send-Warning {
 }
 
 function Send-Information {
+  <#
+  .Synopsis
+  Sends information stream data through a named pipe from the administrator
+  process to the host process.
+
+  .Description
+  The Send-Information function sends message data and tags through a named
+  pipe from the administrator process to the host process such that it can be
+  handled by the Write-Information cmdlet on the host.
+
+  It attempts to expose the same interface as Write-Information such that it
+  can be aliased to shadow the real Write-Information inside script blocks and
+  commands executed by Invoke-AsAdministrator.
+  #>
+
   param(
     [object]$MessageData,
     [string[]]$Tags = @()
@@ -331,6 +543,21 @@ function Send-Information {
 }
 
 function Send-Host {
+  <#
+  .Synopsis
+  Sends customized output through a named pipe from the administrator process
+  to the host process.
+
+  .Description
+  The Send-Host function sends objects and parameters through a named pipe from
+  the administrator process to the host process such that it can be printed to
+  the host's screen using Write-Host.
+
+  It attempts to expose the same interface as Write-Host such that it can be
+  aliased to shadow the real Write-Host inside script blocks and commands
+  executed by Invoke-AsAdministrator.
+  #>
+
   param(
     [object]$Object,
     [switch]$NoNewLine,
@@ -349,6 +576,21 @@ function Send-Host {
 }
 
 function Send-Progress {
+  <#
+  .Synopsis
+  Sends progress information through a named pipe from the administrator
+  process to the host process so that it can be displayed in progress bars.
+
+  .Description
+  The Send-Progress function sends progress information through a named pipe
+  from the administrator process to the host process such that it can be
+  displayed in progress bars on the host.
+
+  It attempts to expose the same interface as Write-Progress such that it can
+  be aliased to shadow the real Write-Progress inside script blocks and
+  commands executed by Invoke-AsAdministrator.
+  #>
+
   [CmdletBinding(PositionalBinding=$false)]
   param(
     [Parameter(Position=0, Mandatory=$true)]
@@ -389,6 +631,9 @@ Set-Alias -Name Write-Information -Value Send-Information
 Set-Alias -Name Write-Host -Value Send-Host
 Set-Alias -Name Write-Progress -Value Send-Progress
 
+'@
+
+$RunnerString = @'
 $Formatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 
 Set-Location $Location
@@ -468,6 +713,10 @@ function Invoke-AdminProcess {
 
   .Parameter Verb
   The verb to use when starting the process. Typically "RunAs".
+
+  .Outputs
+
+  None.
   #>
 
   param(
@@ -525,21 +774,25 @@ function Invoke-AsAdministrator {
   framework in order to get commands we want to execute to the process and
   output from that process back to the parent. This allows us to execute\
   commands in an Administrator-level process and have the output print in the
-  host terminal, "just like sudo". As a matter of implementation details:
-  Invoke-Expression is used when the command is a single string, but in other
-  cases the call operator (&) is used instead.
+  host terminal, "just like sudo".
 
-  Note that environment variables are evaluated in the context of the parent
-  process and not the child.
+  Additionally, it defines a number of functions and shadowing aliases for
+  common output commands:
 
-  There are some limitations. Only objects that support .NET serialization can
-  be sent in either direction, and this implementation can only handle the output
-  and error streams.
+  - Write-Output
+  - Write-Error
+  - Write-Debug
+  - Write-Verbose
+  - Write-Warning
+  - Write-Host
+  - Write-Progress
 
-  Finally, the implementation can be brittle. If the command passed to the
-  Administrator process is malformed and exits before the client connection
-  can be established, then it will permanently lock up the parent process,
-  which will be deadlocked.
+  Naive calls to these commands will be captured and their corresponding
+  parameters will be sent to the host process, where the corresponding "real"
+  command will be called.
+
+  Note that environment variables inside of script blocks are evaluated in the
+  context of the host process and not the administrator process.
 
   .Parameter ScriptBlock
   A script block. This gets evaluated in the Administrator process with the
@@ -561,6 +814,15 @@ function Invoke-AsAdministrator {
   .Parameter Verb
   In addition to the RunAs verb, exes also support the RunAsUser verb. This
   allows for using this alternate verb. The default is "RunAs".
+
+  .Parameter CaptureOutputStream
+  When this switch is enabled, Invoke-AsAdministrator will capture the error
+  stream of the executed command and re-emit all captured ErrorRecords from
+  the output stream onto the error stream. This behavior is desirable if you
+  want to capture output from  commands that are writing errors to the error
+  stream using $PSObject.WriteError instead of Write-Error, but potentially
+  undesirable if certain ErrorRecords are expected to be emitted on the
+  Output stream.
 
   .Example
   PS> Invoke-AsAdministrator {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}
@@ -616,6 +878,8 @@ function Invoke-AsAdministrator {
   $CommandString = "
   $DeserializerString
 
+  $SerializerString
+
   `$PipeName = `'$PipeName`'
 
   `$Location = ConvertFrom-Representation `'$Location`'
@@ -636,8 +900,11 @@ function Invoke-AsAdministrator {
     $CommandString += "`$CaptureErrorStream = `$false`n"
   }
 
-  $CommandString += $RunnerString
-  Write-Debug $CommandString
+  $CommandString += "
+  $SenderString
+
+  $RunnerString
+  "
 
   Test-CommandString $CommandString
 
@@ -728,9 +995,12 @@ Export-ModuleMember `
      'Get-Base64String',`
      'ConvertTo-Representation',`
      'Invoke-AdminProcess',`
-     'Invoke-AsAdministrator' `
+     'Invoke-AsAdministrator', `
+     'Test-CommandString' `
   ) `
    -Variable @(`
      'DeserializerString',`
+      'SerializerString', `
+      'SenderString', `
      'RunnerString' `
   )
