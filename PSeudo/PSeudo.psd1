@@ -26,7 +26,7 @@
   GUID = 'd540a6db-930e-4b14-bd04-4ed21eeed8c3'
   Author = 'Josh Holbrook'
   CompanyName = 'Josh Holbrook'
-  Copyright = 'Copyright 2020 Josh Holbrook. Licensed under an MIT/Expat license.'
+  Copyright = 'Copyright 2020 Josh Holbrook. Copyright (c) 2014 msumimz. Licensed under an MIT/Expat license.'
   Description = 'Execute PowerShell commands as Administrator in Windows 10 "like sudo"'
 
   PowerShellVersion = '5.1'
