@@ -46,7 +46,7 @@ task Test {
 
 task Docs {
   Import-Module .\PSeudo
-  Get-Help Invoke-AsAdministrator | Out-File .\API.txt
+  Get-Help Invoke-AsAdministrator -Full | Out-File .\API.txt
   Remove-Module PSeudo
 }
 
