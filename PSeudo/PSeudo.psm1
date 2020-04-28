@@ -811,16 +811,16 @@ function Invoke-AsAdministrator {
 }
 
 Export-ModuleMember `
-   -Function @(`
-     'Get-Base64String',`
-     'ConvertTo-Representation',`
-     'Invoke-AdminProcess',`
-     'Invoke-AsAdministrator',`
-     'Test-CommandString' `
-  ) `
-   -Variable @(`
-     'DeserializerString',`
-     'SerializerString',`
-     'SenderString',`
-     'RunnerString' `
-  )
+   -Function @(
+  'Get-Base64String',
+  'ConvertTo-Representation',
+  'Invoke-AdminProcess',
+  'Invoke-AsAdministrator',
+  'Test-CommandString'
+) `
+   -Variable @(
+  'DeserializerString',
+  'SerializerString',
+  'SenderString',
+  'RunnerString'
+)

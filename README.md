@@ -1,8 +1,5 @@
 # PSeudo
 
-A PowerShell module that lets you execute commands with Administrator
-privileges while keeping output inside the host session, "like sudo".
-
 A PowerShell module that executes commands with Administrator privileges
 in Windows 10 with output showing inside the host session, "like sudo".
 
@@ -90,7 +87,6 @@ I'm writing to your host!
 PSeudo will also handle `Write-Output`, `Write-Verbose`, `Write-Warning` and
 `Write-Progress` more or less correctly.
 
-
 PSeudo works best with
 [serializable objects](https://docs.microsoft.com/en-us/dotnet/api/system.serializableattribute?view=netcore-3.1)
 but will do sensible things with non-serializable objects as well. For
@@ -177,14 +173,14 @@ Get-Help Invoke-AsAdministrator
 ```
 
 You can also get information on what PSeudo does and how it works from
-about_PSeudo:
+[about_PSeudo](https://github.com/jfhbrook/PSeudo/blob/master/PSeudo/en-US/about_PSeudo.help.txt):
 
 ```powershell
 Get-Help about_PSeudo
 ```
 
 and you can get information about the environment and scope that PSeudo script
-blocks from about_PSeudo_Administrator_Scope:
+blocks from [about_PSeudo_Administrator_Scope](https://github.com/jfhbrook/PSeudo/blob/master/PSeudo/en-US/about_PSeudo_Administrator_Scope.help.txt):
 
 ```powershell
 Get-Help about_PSeudo_Administrator_Scope
@@ -215,6 +211,14 @@ Note that large chunks of the source for PSeudo are contained in strings, and
 therefore can't actually be linted or formatted. This can be addressed on an
 ad-hoc basis via copy and paste, but practically speaking do the best you can.
 
-### Licensing
+### Publishing
+
+The Invoke-Build config includes a task for publishing to PSGallery which can
+be ran with `Invoke-Build Publish`. It expects a file in the project directory
+(which is gitignored! be careful!) called `.\Secrets.ps1` which defines a
+variable called `$PowershellGalleryAPIKey`. If you're a PowerShell person and
+you know of a better strategy, *please* share.
+
+## Licensing
 
 This project is hosted with a permissive MIT/Expat license.
