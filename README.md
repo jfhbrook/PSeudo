@@ -166,7 +166,9 @@ Curses!
 
 ## Help and Documentation
 
-You can get help for `Invoke-AsAdministrator` through the `Get-Help` cmdlet:
+You can
+[access comment-level help](https://github.com/jfhbrook/PSeudo/blob/master/PSeudo/PSeudo.psm1#L517-L635)
+for `Invoke-AsAdministrator` through the `Get-Help` cmdlet:
 
 ```powershell
 Get-Help Invoke-AsAdministrator
