@@ -168,6 +168,7 @@ function Test-Serializable {
 }
 
 function New-SerializableObject {
+  [CmdletBinding(SupportsShouldProcess,ConfirmImpact = 'Low')]
   param(
     [object]$InputObject
   )
@@ -178,9 +179,9 @@ function New-SerializableObject {
 
   $SerializableObject = $InputObject
 
-  if (-not (Test-Serializable $InputObject)) {
+  if (-not (Test-Serializable $InputObject) -and $PSCmdlet.ShouldProcess($InputObject,'Create a new object')) {
     $SerializableObject = New-Object PSObject
-    @('Property', 'NoteProperty') | ForEach-Object {
+    @('Property','NoteProperty') | ForEach-Object {
       $InputObject | Get-Member -MemberType $_ | ForEach-Object {
         $Name = $_.Name
         $Value = ($InputObject | Select-Object -ExpandProperty $Name)
@@ -204,13 +205,13 @@ function Send-Message {
   param(
     [string]$Type,
 
-    [Parameter(ValueFromPipeline=$true)]
+    [Parameter(ValueFromPipeline = $true)]
     [object]$InputObject
   )
 
   $SerializableObject = New-SerializableObject $InputObject
 
-  $Payload = @{Type = $Type; Object = $SerializableObject}
+  $Payload = @{ Type = $Type; Object = $SerializableObject }
 
   $OutPipe.WriteByte(1)
   $Formatter.Serialize($OutPipe,$Payload)
@@ -235,7 +236,7 @@ filter Send-ToPipe {
 function Send-Output {
   [CmdletBinding()]
   param(
-    [Parameter(ValueFromPipeline=$true, Mandatory=$true)]
+    [Parameter(ValueFromPipeline = $true,Mandatory = $true)]
     [object]$InputObject,
 
     [switch]$NoEnumerate
@@ -247,39 +248,39 @@ function Send-Output {
 }
 
 function Send-Error {
-  [CmdletBinding(PositionalBinding=$false)]
+  [CmdletBinding(PositionalBinding = $false)]
   param(
-    [Parameter(ParameterSetName='Exception')]
+    [Parameter(ParameterSetName = 'Exception')]
     [Exception]$Exception,
 
-    [Parameter(Mandatory=$true, ParameterSetName='ErrorRecord')]
+    [Parameter(Mandatory = $true,ParameterSetName = 'ErrorRecord')]
     [System.Management.Automation.ErrorRecord]$ErrorRecord,
 
-    [Parameter(Position=0, ParameterSetName='Exception')]
+    [Parameter(Position = 0,ParameterSetName = 'Exception')]
     [string]$Message,
 
-    [Parameter(Position=1, ParameterSetName='Exception')]
+    [Parameter(Position = 1,ParameterSetName = 'Exception')]
     [System.Management.Automation.ErrorCategory]$Category = [System.Management.Automation.ErrorCategory]'NotSpecified',
 
-    [Parameter(Position=2, ParameterSetName='Exception')]
+    [Parameter(Position = 2,ParameterSetName = 'Exception')]
     [string]$ErrorId,
 
-    [Parameter(Position=3, ParameterSetName='Exception')]
+    [Parameter(Position = 3,ParameterSetName = 'Exception')]
     [Object]$TargetObject,
 
-    [Parameter(Position=4)]
+    [Parameter(Position = 4)]
     [string]$RecommendedAction,
 
-    [Parameter(Position=5)]
+    [Parameter(Position = 5)]
     [string]$CategoryActivity,
 
-    [Parameter(Position=6)]
+    [Parameter(Position = 6)]
     [string]$CategoryReason,
 
-    [Parameter(Position=7)]
+    [Parameter(Position = 7)]
     [string]$CategoryTargetName,
 
-    [Parameter(Position=8)]
+    [Parameter(Position = 8)]
     [string]$CategoryTargetType
   )
 
@@ -371,15 +372,15 @@ function Send-Host {
 }
 
 function Send-Progress {
-  [CmdletBinding(PositionalBinding=$false)]
+  [CmdletBinding(PositionalBinding = $false)]
   param(
-    [Parameter(Position=0, Mandatory=$true)]
+    [Parameter(Position = 0,Mandatory = $true)]
     [string]$Activity,
 
-    [Parameter(Position=1)]
+    [Parameter(Position = 1)]
     [string]$Status,
 
-    [Parameter(Position=2)]
+    [Parameter(Position = 2)]
     [int]$Id,
 
     [int]$PercentComplete,
@@ -411,7 +412,6 @@ Set-Alias -Name Write-Warning -Value Send-Warning
 Set-Alias -Name Write-Information -Value Send-Information
 Set-Alias -Name Write-Host -Value Send-Host
 Set-Alias -Name Write-Progress -Value Send-Progress
-
 '@
 
 $RunnerString = @'
