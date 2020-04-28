@@ -44,6 +44,12 @@ task Test {
   powershell -Command Invoke-Pester
 }
 
+task Docs {
+  Import-Module .\PSeudo
+  Get-Help Invoke-AsAdministrator | Out-File .\API.txt
+  Remove-Module PSeudo
+}
+
 task Publish Lint,Test,{
   . .\Secrets.ps1
 

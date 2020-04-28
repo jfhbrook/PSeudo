@@ -167,7 +167,7 @@ Curses!
 ## Help and Documentation
 
 You can
-[access comment-level help](https://github.com/jfhbrook/PSeudo/blob/master/PSeudo/PSeudo.psm1#L541-L659)
+[access comment-level help](https://github.com/jfhbrook/PSeudo/blob/master/API.txt)
 for `Invoke-AsAdministrator` through the `Get-Help` cmdlet:
 
 ```powershell
@@ -213,6 +213,12 @@ be formatted with `Invoke-Build Format`.
 Note that large chunks of the source for PSeudo are contained in strings, and
 therefore can't actually be linted or formatted. This can be addressed on an
 ad-hoc basis via copy and paste, but practically speaking do the best you can.
+
+### Generating Docs
+
+This project has a task that will import the development version of PSeudo and
+write the output of `Get-Help Invoke-AsAdministrator` to a file so that I can
+link to it on GitHub. You can run this task with `Invoke-Build Docs`.
 
 ### Publishing
 
