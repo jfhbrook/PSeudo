@@ -602,41 +602,37 @@ function Invoke-AsAdministrator {
   (the output stream). The default is 2.
 
   .Example
-  PS> Invoke-AsAdministrator { "hello world!" }
+  Invoke-AsAdministrator { "hello world!" }
 
   This will execute a script block as Administrator and output the string
   "hello world!".
 
   .Example
-  PS> Invoke-AsAdministrator '"hello world!"'
+  Invoke-AsAdministrator '"hello world!"'
 
   This will evaluate a string as Administrator and output the string
   "hello world!".
 
   .Example
-  PS> Invoke-AsAdministrator { param($Friend) "hello $Friend!" } -ArgumentList 'Korben'
+  Invoke-AsAdministrator { param($Friend) "hello $Friend!" } -ArgumentList 'Korben'
 
   This will execute a script block as Administrator and pass an argument to
   it, outputting the string "hello Korben!".
 
   .Example
-  PS> Invoke-AsAdministrator { $Env:AppData }
+  Invoke-AsAdministrator { $Env:AppData }
 
   This will output the host user's AppData directory. Variables in script
   blocks are evaluated before they're ran in the administrator process.
 
   .Example
-  PS> Invoke-AsAdministrator { throw 'baby' }
+  Invoke-AsAdministrator { throw 'baby' }
 
   This will throw an exception on the host process. Exceptions are captured
   and proxied.
 
   .Example
-  PS> Invoke-AsAdministrator {
-  >>   Write-Error 'this is a test error!'
-  >>   Write-Information 'this is some IMPORTANT INFORMATION!'
-  >>   Write-Host "I'm writing to your host!"
-  >> } 6>&1
+  Invoke-AsAdministrator { Write-Error 'this is a test error!'; Write-Information 'this is some IMPORTANT INFORMATION!'; Write-Host "I'm writing to your host!" } 6>&1
 
   This will write an error to the host error stream, information to the
   information stream (redirected to the output stream on the host), and
@@ -645,11 +641,7 @@ function Invoke-AsAdministrator {
   similarly.
 
   .Example
-  PS> Invoke-AsAdministrator {
-  >>   Get-Process -IncludeUsername |
-  >>   Sort-Object -Property VM -Descending |
-  >>   Select-Object -First 1
-  >> }
+  Invoke-AsAdministrator { Get-Process -IncludeUsername | Sort-Object -Property VM -Descending | Select-Object -First 1 }
 
   This will get all processes, including processes not owned by the user,
   (which is information only accessible to the Administrator), find the one
