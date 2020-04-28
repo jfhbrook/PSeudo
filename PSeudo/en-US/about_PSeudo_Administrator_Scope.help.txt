@@ -5,6 +5,7 @@ SHORT DESCRIPTION
     Describes the functions and aliases available inside of the
     Invoke-AsAdministrator environment.
 
+
 LONG DESCRIPTION
     PSeudo works by assembling a large string containing a PowerShell program
     and passing it to the administrator process as an encoded command. By
@@ -16,6 +17,7 @@ LONG DESCRIPTION
     In an ideal world, the user shouldn't have to know about any of these
     functions or aliases, private public or otherwise. That said, for those
     of you deep in the weeds, these docs are for you.
+
 
 ALIASES
     The following aliases are defined inside of the Administrator scope:
@@ -29,6 +31,7 @@ ALIASES
     Get-Progress -> Write-Progress
 
     All of these functions are also defined inside of the scope.
+
 
 PUBLIC FUNCTIONS
     The following functions are intended to be called by the user, largely
@@ -179,6 +182,7 @@ PUBLIC FUNCTIONS
     be aliased to shadow the real Write-Progress inside script blocks and
     commands executed by Invoke-AsAdministrator.
 
+
 PRIVATE FUNCTIONS
     The following functions are exposed inside of the Administrator process
     scope but are not intended to be called by the user:
@@ -295,6 +299,7 @@ PRIVATE FUNCTIONS
 
     .Outputs
     None.
+
 
 PRIVATE VARIABLES
     The following variables are exposed inside of the Administrator process
