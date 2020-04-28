@@ -10,8 +10,8 @@ LONG DESCRIPTION
     and passing it to the administrator process as an encoded command. By
     doing this, it exposes a number of functions and variables to the user.
     Some of them are incidental and "private" but accessible. Others are
-    intended to be called by the user. In addition, PSeudo defines a number
-    of aliases which shadow common output functions.
+    intended to be called by the user - PSeudo defines a number
+    of aliases which shadow common output functions to call these functions.
 
     In an ideal world, the user shouldn't have to know about any of these
     functions or aliases, private public or otherwise. That said, for those
@@ -54,18 +54,6 @@ PUBLIC FUNCTIONS
     before sending its output through the pipe. This means that NoEnumerate's
     behavior depends on the version of PowerShell running in the administrator
     process. Note that this behavior is also poorly tested.
-
-    .Parameter InputObject
-    Specifies the object to send down the pipeline.
-
-    .Parameter NoEnumerate
-    This parameter is currently ignored.
-
-    .Outputs
-
-    Object. Send-Output returns the same object that's submitted as input,
-    excepting for when -CaptureErrorStream is enabled and the input object is
-    an ErrorRecord.
 
 
     Send-Error
@@ -273,7 +261,7 @@ PRIVATE FUNCTIONS
     ------------
 
     .Synopsis
-    Sends data from the output stream of the executed command to the host
+    Sends data from the output stgream of the executed command to the host
     process as output.
 
     .Description
