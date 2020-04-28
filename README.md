@@ -182,7 +182,7 @@ Get-Help about_PSeudo
 ```
 
 and you can get information about the environment and scope that PSeudo script
-blocks fun in from
+blocks run in from
 [about_PSeudo_Administrator_Scope](https://github.com/jfhbrook/PSeudo/blob/master/PSeudo/en-US/about_PSeudo_Administrator_Scope.help.txt):
 
 ```powershell
