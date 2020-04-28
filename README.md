@@ -167,7 +167,7 @@ Curses!
 ## Help and Documentation
 
 You can
-[access comment-level help](https://github.com/jfhbrook/PSeudo/blob/master/PSeudo/PSeudo.psm1#L517-L635)
+[access comment-level help](https://github.com/jfhbrook/PSeudo/blob/master/PSeudo/PSeudo.psm1#L541-L659)
 for `Invoke-AsAdministrator` through the `Get-Help` cmdlet:
 
 ```powershell
