@@ -85,7 +85,7 @@ function ConvertTo-Representation {
   .Description
   The ConvertTo-Representation function converts an input object into a
   deserializable base64 representation. This is so that we can send objects
-  over command line arguments from the host process into the administrator
+  over command line arguments from the host process into the Administrator
   process. When objects support .NET's serialization framework this is fully
   reversible; in other cases, we create a new PSObject with the same top-
   level properties (unless they're non-serializable, in which case they are
@@ -98,7 +98,7 @@ function ConvertTo-Representation {
 
   .Outputs
   string. A base64 string that can be deserialized by
-  ConvertFrom-Representation inside the administrator process.
+  ConvertFrom-Representation inside the Administrator process.
   #>
 
   param(
@@ -498,7 +498,7 @@ function Test-CommandString {
 function Invoke-AdminProcess {
   <#
   .Description
-  Run the administrator process with the given command string, file
+  Run the Administrator process with the given command string, file
   path and verb. This function is exposed internally so that it can be
   easily mocked in tests.
 
@@ -585,7 +585,7 @@ function Invoke-AsAdministrator {
   .Parameter FilePath
   An optional path to a PowerShell executable. This defaults to the
   executable being used to run the parent process; however it can be
-  overridden to run the administrator process with a different
+  overridden to run the Administrator process with a different
   executable than the one currently running.
 
   .Parameter Verb
@@ -625,7 +625,7 @@ function Invoke-AsAdministrator {
   Invoke-AsAdministrator { $Env:AppData }
 
   This will output the host user's AppData directory. Variables in script
-  blocks are evaluated before they're ran in the administrator process.
+  blocks are evaluated before they're ran in the Administrator process.
 
   .Example
   Invoke-AsAdministrator { throw 'baby' }

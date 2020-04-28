@@ -27,7 +27,7 @@
   Author = 'Josh Holbrook'
   CompanyName = 'Josh Holbrook'
   Copyright = 'Copyright 2020 Josh Holbrook. Licensed under an MIT/Expat license.'
-  Description = 'Allows for executing commands as an Administrator and returning output to an unprivileged host session'
+  Description = 'Execute PowerShell commands as Administrator in Windows 10 "like sudo"'
 
   PowerShellVersion = '5.1'
 

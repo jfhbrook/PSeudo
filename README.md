@@ -24,7 +24,7 @@ PS > Invoke-AsAdministrator { "hello world!" }
 hello world!
 ```
 
-If you run this, it will ask to run PowerShell as administrator, and then
+If you run this, it will ask to run PowerShell as Administrator, and then
 print "hello world!" to your screen.
 
 It will also work if you pass it a string:

@@ -8,7 +8,7 @@ SHORT DESCRIPTION
 
 LONG DESCRIPTION
     PSeudo works by assembling a large string containing a PowerShell program
-    and passing it to the administrator process as an encoded command. By
+    and passing it to the Administrator process as an encoded command. By
     doing this, it exposes a number of functions and variables to the user.
     Some of them are incidental and "private" but accessible. Others are
     intended to be called by the user - PSeudo defines a number
@@ -41,12 +41,12 @@ PUBLIC FUNCTIONS
     ------------
 
     .Synopsis
-    Sends the specified object through a named pipe from the administrator
+    Sends the specified object through a named pipe from the Administrator
     process to the host process as output.
 
     .Description
     The Send-Output function sends the specified object through a named pipe
-    from the administrator process to the host process such that it is passed
+    from the Administrator process to the host process such that it is passed
     down the pipeline to the next command.
 
     It attempts to expose the same interface as Write-Output such that it can
@@ -55,7 +55,7 @@ PUBLIC FUNCTIONS
 
     It implements NoEnumerate by calling the real Write-Output with this switch
     before sending its output through the pipe. This means that NoEnumerate's
-    behavior depends on the version of PowerShell running in the administrator
+    behavior depends on the version of PowerShell running in the Administrator
     process. Note that this behavior is also poorly tested.
 
 
@@ -63,12 +63,12 @@ PUBLIC FUNCTIONS
     ----------
 
     .Synopsis
-    Sends the specified object through a named pipe from the administrator
+    Sends the specified object through a named pipe from the Administrator
     process to the host process as an error.
 
     .Description
     The Send-Error function declares a non-terminating error and then sends it
-    through a named pipe from the administrator process to the host process
+    through a named pipe from the Administrator process to the host process
     such that it is emitted on the error stream.
 
     It attempts to expose the same interface as Write-Error such that it can
@@ -85,12 +85,12 @@ PUBLIC FUNCTIONS
     ----------
 
     .Synopsis
-    Sends a debug message through a named pipe from the administrator
+    Sends a debug message through a named pipe from the Administrator
     process to the host process.
 
     .Description
     The Send-Debug function sends a message through a named pipe from the
-    administrator process to the host process such that it can be emitted
+    Administrator process to the host process such that it can be emitted
     as a debug message on the host.
 
     It attempts to expose the same interface as Write-Debug such that it can
@@ -102,12 +102,12 @@ PUBLIC FUNCTIONS
     ------------
 
     .Synopsis
-    Sends text through a named pipe from the administrator process to the host
+    Sends text through a named pipe from the Administrator process to the host
     process such that it can be written to the verbose message stream.
 
     .Description
     The Send-Verbose function sends text through a named pipe from the
-    administrator process to the host process such that it can be emitted
+    Administrator process to the host process such that it can be emitted
     on the verbose message stream on the host.
 
     It attempts to expose the same interface as Write-Verbose such that it can
@@ -119,12 +119,12 @@ PUBLIC FUNCTIONS
     ------------
 
     .Synopsis
-    Sends a warning through a named pipe from the administrator process to the
+    Sends a warning through a named pipe from the Administrator process to the
     host process.
 
     .Description
     The Send-Warning function sends warning messages through a named pipe from
-    the administrator process to the host process such that they can be emitted
+    the Administrator process to the host process such that they can be emitted
     as warnings on the host.
 
     It attempts to expose the same interface as Write-Warning such that it can
@@ -136,12 +136,12 @@ PUBLIC FUNCTIONS
     ----------------
 
     .Synopsis
-    Sends information stream data through a named pipe from the administrator
+    Sends information stream data through a named pipe from the Administrator
     process to the host process.
 
     .Description
     The Send-Information function sends message data and tags through a named
-    pipe from the administrator process to the host process such that it can be
+    pipe from the Administrator process to the host process such that it can be
     handled by the Write-Information cmdlet on the host.
 
     It attempts to expose the same interface as Write-Information such that it
@@ -153,12 +153,12 @@ PUBLIC FUNCTIONS
     ---------
 
     .Synopsis
-    Sends customized output through a named pipe from the administrator process
+    Sends customized output through a named pipe from the Administrator process
     to the host process.
 
     .Description
     The Send-Host function sends objects and parameters through a named pipe from
-    the administrator process to the host process such that it can be printed to
+    the Administrator process to the host process such that it can be printed to
     the host's screen using Write-Host.
 
     It attempts to expose the same interface as Write-Host such that it can be
@@ -170,12 +170,12 @@ PUBLIC FUNCTIONS
     -------------
 
     .Synopsis
-    Sends progress information through a named pipe from the administrator
+    Sends progress information through a named pipe from the Administrator
     process to the host process so that it can be displayed in progress bars.
 
     .Description
     The Send-Progress function sends progress information through a named pipe
-    from the administrator process to the host process such that it can be
+    from the Administrator process to the host process such that it can be
     displayed in progress bars on the host.
 
     It attempts to expose the same interface as Write-Progress such that it can
@@ -193,7 +193,7 @@ PRIVATE FUNCTIONS
     .Description
     The ConvertFrom-Representation function converts a deserializable base64
     object representation into an object, using .NET's serialization framework.
-    This is used inside of the administrator process to re-hydrate objects sent
+    This is used inside of the Administrator process to re-hydrate objects sent
     to it as command arguments from the host process.
 
     .Parameter Representation
@@ -245,7 +245,7 @@ PRIVATE FUNCTIONS
     ------------
 
     .Description
-    The Send-Message function sends a message from the administrator process to
+    The Send-Message function sends a message from the Administrator process to
     the host process over a named pipe using .NET's serialization framework. It
     handles non-serializable objects by converting them into PSObjects with the
     same keys and with serializable values where possible and string stubs
@@ -270,7 +270,7 @@ PRIVATE FUNCTIONS
 
     .Description
     The Send-ToPipe filter sends objects through a named pipe from the
-    administrator process to the host process such that it is interpreted as
+    Administrator process to the host process such that it is interpreted as
     output.
 
     It handles both the output stream and a second stream, based on the
@@ -293,12 +293,12 @@ PRIVATE FUNCTIONS
     ----------
 
     .Synopsis
-    Sends the specified ErrorRecord through a named pipe from the administrator
+    Sends the specified ErrorRecord through a named pipe from the Administrator
     process to the host process such that it is thrown as a terminating error.
 
     .Description
     The Send-Fatal function declares an error and then sends it through a named
-    pipe from the administrator process to the host process such that it can be
+    pipe from the Administrator process to the host process such that it can be
     thrown as a terminating error.
 
     .Parameter ErrorRecord
