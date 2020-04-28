@@ -32,11 +32,11 @@
   PowerShellVersion = '5.1'
 
   FunctionsToExport = 'Invoke-AsAdministrator'
-  FileList = @('PSeudo.psd1','PSeudo.psm1','LICENSE','en-US\about_PSeudo.help.txt','about_PSeudo_Administrator_Scope.help.txt')
+  FileList = @('PSeudo.psd1','PSeudo.psm1','LICENSE','en-US\about_PSeudo.help.txt','en-US\bout_PSeudo_Administrator_Scope.help.txt')
 
   PrivateData = @{
     PSData = @{
-      Tags = @('Invoke-AsAdmin','Admin','Administration','Elevate','Elevated','Privileges','sudo','UAC')
+      Tags = @('Invoke-AsAdministrator','Admin','Administrator','Administration','Elevate','Elevated','Privileges','sudo','UAC')
       LicenseUri = 'https://github.com/jfhbrook/PSeudo/blob/master/PSeudo/LICENSE'
       ProjectUri = 'https://github.com/jfhbrook/PSeudo'
     }
