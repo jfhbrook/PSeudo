@@ -590,16 +590,18 @@ function Invoke-AsAdministrator {
 
   .Parameter Verb
   In addition to the RunAs verb, exes also support the RunAsUser verb. This
-  allows for using this alternate verb. The default is "RunAs".
+  allows for using this alternate verb.
 
   .Parameter CapturedStream
   By default, the 'error' stream (stream 2) is completely captured and all
   ErrorRecords are re-emitted on the host Error stream. This allows for
   capturing errors that are emitted by calling $PSCmdlet.WriteError or by
-  native cmdlets. This value can be set to capture other streams. For example,
+  native cmdlets.
+
+  This value can be set to capture other streams. For example,
   setting this value to 6 would capture all data emitted over the Information
   stream. This behavior can be completely disabled by setting this value to 1
-  (the output stream). The default is 2.
+  (the output stream).
 
   .Example
   Invoke-AsAdministrator { "hello world!" }
