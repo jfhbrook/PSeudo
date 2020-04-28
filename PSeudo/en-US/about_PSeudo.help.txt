@@ -2,4 +2,48 @@ TOPIC
     about_PSeudo
 
 SHORT DESCRIPTION
-    Testing 123
+    General information about PSeudo.
+
+LONG DESCRIPTION
+    PowerShell doesn't have an analog to sudo from the *nix world. This means
+    that if we want to execute commands with elevated privileges - ie, as
+    Administrator - that we need to spawn a child PowerShell process with the
+    `-Verb` parameter set to `RunAs`.
+
+    Typically, when executing commands in a child PowerShell process, everything
+    works the way we would like it to - the subshell is spawned, our commands
+    (either in string or script block format) are executed in the subshell, and
+    the results are printed back in the host terminal.
+
+    However, this is not the case for Administrator processes. In these
+    situations, the child PowerShell process spawns a separate window, logs its
+    output to that window, and then typically exits when the script terminates.
+    Any IO and feedback that happens in that process, regardless of whether it's
+    the output stream, the error stream or otherwise, is lost into the aether.
+    This is further complicated by the fact that we typically don't want end
+    users to see the administrator window - it looks sloppy. This can be
+    mitigated by keeping the administrator window open after the command has
+    terminated, but this makes for a bad user experience.
+
+    PSeudo solves this problem with a combination of named pipes and .NET's
+    serialization framework. It exposes a function called Invoke-AsAdministrator
+    that spawns a child administrator process, serializing its arguments and
+    embedding them into a string -Command. This process then creates a named
+    pipe and sends serialized results back to the host process.
+
+    In addition to handling basic output streams, PSeudo can also capture and
+    handle calls to other output functions, such as Write-Error, Write-Verbose
+    and Write-Progress. It does this by defining aliases for these commands
+    that resolve to functions defined inside of the administrator process's
+    scope.
+
+    This allows us to execute commands in an administrator-level process and
+    have the output print in the host terminal in an entirely seamless fashion,
+    "just like sudo".
+
+    Make no mistake: This approach is extremely cursed. Many of the obvious
+    kinks have been worked out and it has fairly comprehensive tests, but it's
+    very likely that there are subtle bugs and unforeseen edge cases.
+
+    As usual, be careful when working with elevated privileges and untrusted
+    input. You've been warned.

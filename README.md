@@ -3,86 +3,217 @@
 A PowerShell module that lets you execute commands with Administrator
 privileges while keeping output inside the host session, "like sudo".
 
-## Install
+A PowerShell module that executes commands with Administrator privileges
+in Windows 10 with output showing inside the host session, "like sudo".
 
-This module is available on
-[PSGallery](https://www.powershellgallery.com/packages/PSeudo) and can be
-installed by running `Install-Module PSeudo`.
+## Installing PSeudo
 
-## About
-
-PowerShell doesn't have an analog to sudo from the \*nix world. This means
-that if we want to execute commands with elevated privileges - ie, as
-Administrator - that we need to spawn a child PowerShell process with the
-`-Verb` parameter set to `RunAs`.
-
-Typically, when executing commands in a child PowerShell process, everything
-works the way we would like it to - the subshell is spawned, our commands
-(either in string or script block format) are executed in the subshell, and
-the results are printed back in the host terminal.
-
-However, this is not the case for Administrator processes. In these
-situations, the child PowerShell process spawns a separate window, logs its
-output to that window, and then typically exits when the script terminates.
-Any IO and feedback that happens in that process, regardless of whether it's
-the output stream, the error stream or otherwise, is lost into the aether.
-This is further complicated by the fact that we typically don't want end
-users to see the administrator window - it looks sloppy. This can be
-mitigated by keeping the administrator window open after the command has
-terminated, but this makes for a bad user experience.
-
-This function uses .NET's serialization framework to send code in the form
-of a script block to a child Administrator process, which then uses a named
-pipe to connect back to the parent and send results, also using .NET's
-serialization framework. This allows us to execute commands in an
-Administrator-level process and have the output print in the host terminal,
-"just like sudo".
-
-Make no mistake: This approach is extremely cursed, and there are a number
-of limitations. Specifically: only objects that support .NET serialization can
-be sent in either direction, and this implementation can only handle the output
-and error streams.
-
-Finally, the implementation can be brittle. If the command passed to the
-Administrator process is malformed and exits before the client connection
-can be established, then it will permanently lock up the parent process,
-which will be deadlocked.
-
-As usual, be careful when working with elevated privileges and untrusted
-input. You've been warned.
-
-## Examples 
+This module is available on the
+[PowerShell Gallery](https://www.powershellgallery.com/packages/PSeudo)
+and can be installed with `Install-Module`:
 
 ```powershell
-Invoke-AsAdmin {Get-Process -IncludeUserName | Sort-Object UserName | Select-Object UserName, ProcessName}
+Install-Module -Name PSeudo
 ```
 
-This will obtain a process list with user name information, sorted by UserName.
-Because Process objects are not serializable, if you want to transform the
-output of Get-Process, enclose the command with curly braces to ensure that
-pipeline processing should be done in the called process.
+## Usage
+
+PSeudo exports a function called `Invoke-AsAdministrator` that takes a
+script block. For example:
 
 ```powershell
-Invoke-AsAdmin {cmd /c mklink $env:USERPROFILE\bin\test.exe test.exe}
+PS> Import-Module PSeudo
+PS > Invoke-AsAdministrator { "hello world!" }
+hello world!
 ```
 
-This will reate a symbolic link to test.exe in the $env:USERPROFILE\bin folder. Note that $env:USERPROFILE is evaluated in the context of the caller process.
+If you run this, it will ask to run PowerShell as administrator, and then
+print "hello world!" to your screen.
+
+It will also work if you pass it a string:
+
+```powershell
+PS> Invoke-AsAdministrator '"hello world!"'
+hello world!
+```
+
+And can also pass arguments to script blocks:
+
+```powershell
+PS> Invoke-AsAdministrator { param($Friend) "Hello $Friend!" } -ArgumentList 'Korben'
+Hello Korben!
+```
+
+My pet budgie appreciates the greeting.
+
+Script blocks may also contain variables - these will be resolved in the host
+process. For example:
+
+```powershell
+PS> Invoke-AsAdministrator { $Env:AppData }
+C:\Users\Josh\AppData\Roaming
+```
+
+PSeudo will handle thrown errors:
+
+```powershell
+PS> Invoke-AsAdministrator { throw 'baby' }
+Invoke-AsAdministrator : baby
+At line:1 char:1
++ Invoke-AsAdministrator { throw 'baby' }
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (baby:String) [Invoke-AsAdministrator], RuntimeExceptio
+   n
+    + FullyQualifiedErrorId : baby
+
+```
+
+We can also call a number of IO functions and have them do the right thing:
+
+```
+PS> Invoke-AsAdministrator {
+>>   Write-Error 'this is a test error!'
+>>   Write-Information 'this is some IMPORTANT INFORMATION!'
+>>   Write-Host "I'm writing to your host!"
+>> } 6>&1
+Invoke-AsAdministrator : this is a test error!
+At line:1 char:1
++ Invoke-AsAdministrator {
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [Write-Error], Exception
+    + FullyQualifiedErrorId :
+
+this is some IMPORTANT INFORMATION!
+I'm writing to your host!
+```
+
+PSeudo will also handle `Write-Output`, `Write-Verbose`, `Write-Warning` and
+`Write-Progress` more or less correctly.
+
+
+PSeudo works best with
+[serializable objects](https://docs.microsoft.com/en-us/dotnet/api/system.serializableattribute?view=netcore-3.1)
+but will do sensible things with non-serializable objects as well. For
+example, process objects are non-serializable, but we can still get
+privileged information on processes (a real use case!) with PSeudo:
+
+```powershell
+PS> Invoke-AsAdministrator {
+>>   Get-Process -IncludeUsername |
+>>   Sort-Object -Property VM -Descending |
+>>   Select-Object -First 1
+>> }
+
+
+BasePriority               : 8
+Container                  :
+EnableRaisingEvents        : False
+ExitCode                   :
+ExitTime                   :
+Handle                     : 2392
+HandleCount                : 876
+HasExited                  : False
+Id                         : 25468
+MachineName                : .
+MainModule                 : System.Diagnostics.ProcessModule (firefox.exe)
+MainWindowHandle           : 0
+MainWindowTitle            :
+MaxWorkingSet              : 1413120
+MinWorkingSet              : 204800
+Modules                    : {System.Diagnostics.ProcessModule (firefox.exe),
+                             System.Diagnostics.ProcessModule (ntdll.dll),
+                             System.Diagnostics.ProcessModule (KERNEL32.DLL),
+                             System.Diagnostics.ProcessModule (KERNELBASE.dll)...}
+NonpagedSystemMemorySize   : 135328
+NonpagedSystemMemorySize64 : 135328
+PagedMemorySize            : 498774016
+PagedMemorySize64          : 498774016
+PagedSystemMemorySize      : 1358736
+PagedSystemMemorySize64    : 1358736
+PeakPagedMemorySize        : 598388736
+PeakPagedMemorySize64      : 598388736
+PeakVirtualMemorySize      : 1349427200
+PeakVirtualMemorySize64    : 2251912290304
+PeakWorkingSet             : 573087744
+PeakWorkingSet64           : 573087744
+PriorityBoostEnabled       : True
+PriorityClass              : Normal
+PrivateMemorySize          : 498774016
+PrivateMemorySize64        : 498774016
+PrivilegedProcessorTime    : 00:03:16.7187500
+ProcessName                : firefox
+ProcessorAffinity          : 15
+Responding                 : True
+SafeHandle                 : Microsoft.Win32.SafeHandles.SafeProcessHandle
+SessionId                  : 1
+Site                       :
+StandardError              :
+StandardInput              :
+StandardOutput             :
+StartInfo                  : System.Diagnostics.ProcessStartInfo
+StartTime                  : 4/25/2020 7:29:32 PM
+SynchronizingObject        :
+Threads                    : {System.Diagnostics.ProcessThread, System.Diagnostics.ProcessThread,
+                             System.Diagnostics.ProcessThread, System.Diagnostics.ProcessThread...}
+TotalProcessorTime         : 00:25:57.3125000
+UserProcessorTime          : 00:22:40.5937500
+VirtualMemorySize          : -814784512
+VirtualMemorySize64        : 2245453111296
+WorkingSet                 : 415858688
+WorkingSet64               : 415858688
+UserName                   : RATICATE\Josh
+__NounName                 : Process
+```
+
+The culprit of all my memory woes is none other than my own FireFox process!
+Curses!
+
+## Help and Documentation
+
+You can get help for `Invoke-AsAdministrator` through the `Get-Help` cmdlet:
+
+```powershell
+Get-Help Invoke-AsAdministrator
+```
+
+You can also get information on what PSeudo does and how it works from
+about_PSeudo:
+
+```powershell
+Get-Help about_PSeudo
+```
+
+and you can get information about the environment and scope that PSeudo script
+blocks from about_PSeudo_Administrator_Scope:
+
+```powershell
+Get-Help about_PSeudo_Administrator_Scope
+```
 
 ## Development
 
-This project uses [Invoke-Build](https://github.com/nightroman/Invoke-Build) to run tasks. You can install it with `Install-Module`. The default task lints and runs tests.
+This project uses [Invoke-Build](https://github.com/nightroman/Invoke-Build) to
+run tasks. All common tasks can be accessed by using Invoke-Build.
 
 ### Tests
 
-This project comes with tests written in [Pester](https://pester.dev). Pester can be installed with `Install-Module` and the tests can be ran with `Invoke-Build Test`.
+This project comes with tests written in [Pester](https://pester.dev).
 
-### Linting
+These tests can be ran with `Invoke-Build Test`. They have decent, but
+unmeasured, coverage. The strategy used by PSeudo is a bit brittle, so it's
+important that code changes are well-tested.
 
-This project is linted with [PSScriptAnalyzer](https://github.com/PowerShell/PSScriptAnalyzer). PSScriptAnalyzer can be installed with `Install-Module` and can be ran with `Invoke-Build Lint`.
+### Linting and Formatting
 
-### Formatting
+This project uses
+[PSScriptAnalyzer](https://github.com/PowerShell/PSScriptAnalyzer) for linting
+and [PowerShell-Beautifier](https://github.com/DTW-DanWard/PowerShell-Beautifier)
+to autoformat code. Linting can be ran with `Invoke-Build Lint`, and code can
+be formatted with `Invoke-Build Format`.
 
-This project uses [PowerShell-Beautifier](https://github.com/DTW-DanWard/PowerShell-Beautifier) to autoformat code. Powershell-Beautifier can be installed with `Install-Module` and formatting can be ran with `Invoke-Build Format`.
+Note that large chunks of the source for PSeudo are contained in strings, and
+therefore can't actually be linted or formatted. This can be addressed on an
+ad-hoc basis via copy and paste, but practically speaking do the best you can.
 
 ### Licensing
 

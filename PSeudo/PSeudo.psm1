@@ -605,13 +605,60 @@ function Invoke-AsAdministrator {
   the context of the caller process.
 
   .Example
-  PS> Invoke-AsAdministrator {Get-Process -IncludeUserName | Sort-Object UserName | Select-Object UserName, ProcessName}
+  PS> Invoke-AsAdministrator { "hello world!" }
 
-  This command obtains a process list with user name information, sorted by
-  UserName. Because the System.Diagnostics.Process objects are not
-  serializable, if you want to transform the output of Get-Process, enclose
-  the command with curly braces to ensure that pipeline processing should be
-  done in the called process.
+  This will execute a script block as Administrator and output the string
+  "hello world!".
+
+  .Example
+  PS> Invoke-AsAdministrator '"hello world!"'
+
+  This will evaluate a string as Administrator and output the string
+  "hello world!".
+
+  .Example
+  PS> Invoke-AsAdministrator { param($Friend) "hello $Friend!" } -ArgumentList 'Korben'
+
+  This will execute a script block as Administrator and pass an argument to
+  it, outputting the string "hello Korben!".
+
+  .Example
+  PS> Invoke-AsAdministrator { $Env:AppData }
+
+  This will output the host user's AppData directory. Variables in script
+  blocks are evaluated before they're ran in the administrator process.
+
+  .Example
+  PS> Invoke-AsAdministrator { throw 'baby' }
+
+  This will throw an exception on the host process. Exceptions are captured
+  and proxied.
+
+  .Example
+  PS> Invoke-AsAdministrator {
+  >>   Write-Error 'this is a test error!'
+  >>   Write-Information 'this is some IMPORTANT INFORMATION!'
+  >>   Write-Host "I'm writing to your host!"
+  >> } 6>&1
+
+  This will write an error to the host error stream, information to the
+  information stream (redirected to the output stream on the host), and
+  write a message directly to the host. The functions Write-Output,
+  Write-Debug, Write-Verbose, Write-Warning and Write-Progress work
+  similarly.
+
+  .Example
+  PS> Invoke-AsAdministrator {
+  >>   Get-Process -IncludeUsername |
+  >>   Sort-Object -Property VM -Descending |
+  >>   Select-Object -First 1
+  >> }
+
+  This will get all processes, including processes not owned by the user,
+  (which is information only accessible to the Administrator), find the one
+  using the most memory, and send data back to the host output stream. Process
+  objects are non-serializable, so the object returned by Invoke-AsAdministrator
+  is a PSObject with the same properties.
   #>
 
   [CmdletBinding()]

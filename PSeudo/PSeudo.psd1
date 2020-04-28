@@ -31,7 +31,7 @@
 
   PowerShellVersion = '5.1'
 
-  FunctionsToExport = 'Invoke-AsAdmin'
+  FunctionsToExport = 'Invoke-AsAdministrator'
   FileList = @('PSeudo.psd1','PSeudo.psm1','LICENSE')
 
   PrivateData = @{
