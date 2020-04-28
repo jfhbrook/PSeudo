@@ -22,7 +22,7 @@
 
 @{
   RootModule = 'PSeudo.psm1'
-  ModuleVersion = '1.0.2'
+  ModuleVersion = '2.0.0'
   GUID = 'd540a6db-930e-4b14-bd04-4ed21eeed8c3'
   Author = 'Josh Holbrook'
   CompanyName = 'Josh Holbrook'
@@ -32,7 +32,7 @@
   PowerShellVersion = '5.1'
 
   FunctionsToExport = 'Invoke-AsAdministrator'
-  FileList = @('PSeudo.psd1','PSeudo.psm1','LICENSE','en-US\about_PSeudo.help.txt','en-US\bout_PSeudo_Administrator_Scope.help.txt')
+  FileList = @('PSeudo.psd1','PSeudo.psm1','LICENSE','en-US\about_PSeudo.help.txt','en-US\about_PSeudo_Administrator_Scope.help.txt')
 
   PrivateData = @{
     PSData = @{

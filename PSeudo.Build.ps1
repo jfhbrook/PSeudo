@@ -26,7 +26,7 @@ param()
 Import-Module PowerShell-Beautifier
 Import-Module PSScriptAnalyzer
 
-task . Lint,Test
+task . Test
 
 task Format {
   Get-ChildItem .\ -Include *.ps1,*.psm1,*.psd1 -Recurse | Edit-DTWBeautifyScript
@@ -50,7 +50,7 @@ task Docs {
   Remove-Module PSeudo
 }
 
-task Publish Lint,Test,{
+task Publish {
   . .\Secrets.ps1
 
   Publish-Module -Path .\PSeudo\ -NuGetApiKey $PowershellGalleryAPIKey
