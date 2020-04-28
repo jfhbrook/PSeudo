@@ -216,22 +216,14 @@ function Send-Message {
   $Formatter.Serialize($OutPipe,$Payload)
 }
 
-function Send-Output {
-  [CmdletBinding()]
-  param(
-    [Parameter(ValueFromPipeline=$true)]
-    [object]$InputObject,
+filter Send-Output {
+  if ($CaptureErrorStream -and ($_ -is [System.Management.Automation.ErrorRecord])) {
+    Send-Error -ErrorRecord $_
 
-    [switch]$NoEnumerate
-  )
-
-  if ($CaptureErrorStream -and ($InputObject -is [System.Management.Automation.ErrorRecord])) {
-    Send-Error -ErrorRecord $InputObject
-  } else {
-    Send-Message -Type 'Output' -InputObject $InputObject
-    return $InputObject
-  }
-}
+   } else {
+    Send-Message -Type 'Output' -InputObject $_
+   }
+ }
 
 function Send-Error {
   [CmdletBinding(PositionalBinding=$false)]
