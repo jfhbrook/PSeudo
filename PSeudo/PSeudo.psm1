@@ -572,15 +572,15 @@ function Invoke-AsAdministrator {
   command will be called.
 
   .Parameter ScriptBlock
-  A script block. This gets evaluated in the Administrator process with the
+  When defined, this gets evaluated in the Administrator process with the
   call operator (&).
 
   .Parameter Command
-  A string command. This gets evaluated in the Administrator process with
+  When defined, this gets evaluated in the Administrator process with
   Invoke-Expression.
 
   .Parameter ArgumentList
-  A list of arguments to be passed to the script block.
+  Arguments to be passed to the script block.
 
   .Parameter FilePath
   An optional path to a PowerShell executable. This defaults to the
@@ -645,11 +645,20 @@ function Invoke-AsAdministrator {
   .Example
   Invoke-AsAdministrator { Get-Process -IncludeUsername | Sort-Object -Property VM -Descending | Select-Object -First 1 }
 
-  This will get all processes, including processes not owned by the user,
-  (which is information only accessible to the Administrator), find the one
-  using the most memory, and send data back to the host output stream. Process
-  objects are non-serializable, so the object returned by Invoke-AsAdministrator
-  is a PSObject with the same properties.
+  This will get all processes, including processes not owned by the user -
+  which is information only accessible to the Administrator - and then find
+  the one using the most memory, finally sending data back to the host
+  output stream. Process objects are non-serializable, so the object returned
+  by Invoke-AsAdministrator is a PSObject with the same properties.
+
+  .Link
+  about_Pseudo
+
+  .Link
+  about_PSeudo_Administrator_Scope
+
+  .Link
+  https://github.com/jfhbrook/PSeudo
   #>
 
   [CmdletBinding()]
