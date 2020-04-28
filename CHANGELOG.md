@@ -1,3 +1,6 @@
+* PSeudo Version 2.0.1
+  - Updated documentation to include the Write-Information -> Send-Information alias and use the correct alias and function names throughout
+
 * PSeudo Version 2.0.0
   - Code now autoformatted with PowerShell-Beautifier
   - Renamed Invoke-AsAdmin to Invoke-AsAdministrator

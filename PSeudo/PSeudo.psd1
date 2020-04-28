@@ -22,7 +22,7 @@
 
 @{
   RootModule = 'PSeudo.psm1'
-  ModuleVersion = '2.0.0'
+  ModuleVersion = '2.0.1'
   GUID = 'd540a6db-930e-4b14-bd04-4ed21eeed8c3'
   Author = 'Josh Holbrook'
   CompanyName = 'Josh Holbrook'

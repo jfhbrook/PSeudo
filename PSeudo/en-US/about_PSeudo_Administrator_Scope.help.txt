@@ -22,13 +22,14 @@ LONG DESCRIPTION
 ALIASES
     The following aliases are defined inside of the Administrator scope:
 
-    Get-Output -> Write-Output
-    Get-Error -> Write-Error
-    Get-Debug -> Write-Debug
-    Get-Verbose -> Write-Verbose
-    Get-Warning -> Write-Warning
-    Get-Host -> Write-Host
-    Get-Progress -> Write-Progress
+    Write-Output -> Send-Output
+    Write-Error -> Send-Error
+    Write-Debug -> Send-Debug
+    Write-Verbose -> Send-Verbose
+    Write-Warning -> Send-Warning
+    Write-Information -> Send-Information
+    Write-Host -> Send-Host
+    Write-Progress -> Send-Progress
 
     All of these functions are also defined inside of the scope.
 

@@ -564,6 +564,7 @@ function Invoke-AsAdministrator {
   - Write-Debug
   - Write-Verbose
   - Write-Warning
+  - Write-Information
   - Write-Host
   - Write-Progress
 
