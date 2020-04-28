@@ -364,7 +364,7 @@ function Send-Host {
 
   Send-Message -Type Host -InputObject @{
     Object = (New-SerializableObject $Object);
-    NoNewLine = [bool]$NoNewLine;
+    NoNewLine = $NoNewLine.IsPresent;
     Separator = (New-SerializableObject $Separator);
     ForegroundColor = $ForegroundColor;
     BackgroundColor = $BackgroundColor
@@ -399,7 +399,7 @@ function Send-Progress {
     SecondsRemaining = $SecondsRemaining;
     CurrentOperation = $CurrentOperation;
     ParentId = $ParentId;
-    Completed = [bool]$Completed;
+    Completed = $Completed.IsPresent;
     SourceId = $SourceId
   }
 }
